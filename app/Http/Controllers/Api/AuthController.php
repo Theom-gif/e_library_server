@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ChangePasswordRequest;
 use App\Http\Requests\LoginRequest;
+use App\Http\Requests\admin\AdminLoginRequest;
+use App\Http\Requests\admin\RegistationAuthor;
 use App\Http\Requests\RegisterRequest;
 use App\Http\Requests\ResetPasswordRequest;
 use App\Http\Requests\UpdateProfileRequest;
@@ -49,6 +51,37 @@ class AuthController extends Controller
             return $this->errorResponse('Registration failed', $e->getMessage(), 500);
         }
     }
+    /**
+     * Register a new author.
+     *
+     * @param RegistationAuthor $request
+     * @return JsonResponse
+     */
+    public function authorRegister(RegistationAuthor $request): JsonResponse
+    {
+        try {
+        
+            // Create new user
+            $user = User::create([
+                'firstname' => $request->firstname,
+                'lastname' => $request->lastname,
+                'email' => $request->email,
+                'password' => Hash::make($request->password),
+                'role_id' => $request->role_id,
+            ]);
+
+            // Generate authentication token
+            $token = $user->createToken('auth_token')->plainTextToken;
+
+            return $this->successResponse([
+                'user' => $user,
+                'token' => $token,
+            ], 'User registered successfully', 201);
+
+        } catch (\Exception $e) {
+            return $this->errorResponse('Registration failed', $e->getMessage(), 500);
+        }
+    }
 
     /**
      * Login user.
@@ -57,6 +90,35 @@ class AuthController extends Controller
      * @return JsonResponse
      */
     public function login(LoginRequest $request): JsonResponse
+    {
+        try {
+            // Find user by email
+            $user = User::where('email', $request->email)->first();
+
+            // Check if user exists and password is correct
+            if (!$user || !Hash::check($request->password, $user->password)) {
+                return $this->errorResponse('Invalid credentials', 'Email or password is incorrect', 401);
+            }
+
+            // Generate authentication token
+            $token = $user->createToken('auth_token')->plainTextToken;
+
+            return $this->successResponse([
+                'user' => $user,
+                'token' => $token,
+            ], 'Login successful', 200);
+
+        } catch (\Exception $e) {
+            return $this->errorResponse('Login failed', $e->getMessage(), 500);
+        }
+    }
+    /**
+     * Login user.
+     *
+     * @param LoginRequest $request
+     * @return JsonResponse
+     */
+    public function adminLogin(AdminLoginRequest $request): JsonResponse
     {
         try {
             // Find user by email

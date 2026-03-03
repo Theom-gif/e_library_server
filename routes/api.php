@@ -26,6 +26,7 @@ Route::get('/health', function () {
 // Public Authentication Routes
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
+    Route::post('/author_registration', [AuthController::class, 'authorRegister']);
     Route::post('/login', [AuthController::class, 'login']);
     Route::post('/request-password-reset', [AuthController::class, 'requestPasswordReset']);
     Route::post('/reset-password', [AuthController::class, 'resetPassword']);
