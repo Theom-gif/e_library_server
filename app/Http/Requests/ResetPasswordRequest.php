@@ -8,6 +8,16 @@ use Illuminate\Validation\Rules\Password;
 class ResetPasswordRequest extends FormRequest
 {
     /**
+     * Normalize legacy confirmation fields.
+     */
+    protected function prepareForValidation(): void
+    {
+        if (!$this->has('password_confirmation') && $this->has('password_confirm')) {
+            $this->merge(['password_confirmation' => $this->input('password_confirm')]);
+        }
+    }
+
+    /**
      * Determine if the user is authorized to make this request.
      */
     public function authorize(): bool

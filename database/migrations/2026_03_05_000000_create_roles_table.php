@@ -9,9 +9,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('roles', function (Blueprint $table) {
-            $table->id("role_id");
-            $table->string('role_name')->unique(); // Prevent duplicate roles
-            $table->string('description')->nullable(); // Allow empty description
+            $table->id();
+            $table->string('name');
+            $table->string('description')->nullable();
             $table->timestamps();
         });
     }

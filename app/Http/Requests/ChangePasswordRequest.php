@@ -8,6 +8,16 @@ use Illuminate\Validation\Rules\Password;
 class ChangePasswordRequest extends FormRequest
 {
     /**
+     * Normalize legacy confirmation fields.
+     */
+    protected function prepareForValidation(): void
+    {
+        if (!$this->has('new_password_confirmation') && $this->has('new_password_confirm')) {
+            $this->merge(['new_password_confirmation' => $this->input('new_password_confirm')]);
+        }
+    }
+
+    /**
      * Determine if the user is authorized to make this request.
      */
     public function authorize(): bool

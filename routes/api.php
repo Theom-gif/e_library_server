@@ -4,8 +4,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CategoryController;
-
 Route::apiResource('categories', CategoryController::class);
+use App\Http\Controllers\Api\PostController;
 
 /*
 |--------------------------------------------------------------------------
@@ -13,8 +13,7 @@ Route::apiResource('categories', CategoryController::class);
 |--------------------------------------------------------------------------
 |
 | Here is where you can register API routes for your application. These
-| routes are loaded by the RouteServiceProvider and all of them will
-| be assigned to the "api" middleware group. Make something great!
+| routes are loaded by the RouteServiceProvider and assigned to the "api" middleware group.
 |
 */
 
@@ -56,4 +55,4 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 });
 
 // Example API routes for REST API
-Route::apiResource('posts', \App\Http\Controllers\Api\PostController::class);
+Route::apiResource('posts', PostController::class);

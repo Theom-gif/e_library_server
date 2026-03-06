@@ -4,9 +4,38 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rules\Password;
+use Illuminate\Support\Facades\DB;
 
 class RegisterRequest extends FormRequest
 {
+    /**
+     * Normalize legacy confirmation fields.
+     */
+    protected function prepareForValidation(): void
+    {
+        if (!$this->has('password_confirmation') && $this->has('password_confirm')) {
+            $this->merge(['password_confirmation' => $this->input('password_confirm')]);
+        }
+
+        $roleInput = $this->input('role_id', $this->input('role_name', $this->input('role')));
+        if ($roleInput === null || $roleInput === '') {
+            return;
+        }
+
+        if (is_numeric($roleInput)) {
+            $this->merge(['role_id' => (int) $roleInput]);
+            return;
+        }
+
+        $roleId = DB::table('roles')
+            ->whereRaw('LOWER(role_name) = ?', [strtolower(trim((string) $roleInput))])
+            ->value('role_id');
+
+        if ($roleId !== null) {
+            $this->merge(['role_id' => (int) $roleId]);
+        }
+    }
+
     /**
      * Determine if the user is authorized to make this request.
      */
@@ -34,7 +63,7 @@ class RegisterRequest extends FormRequest
                     ->numbers()
                     ->symbols(),
             ],
-            'role_id' => 'required|string|exists:roles,role_id',
+            'role_id' => 'required|integer|exists:roles,role_id',
         ];
     }
 
@@ -48,6 +77,7 @@ class RegisterRequest extends FormRequest
             'lastname.required' => 'Last name is required',
             'email.unique' => 'This email is already registered',
             'password.confirmed' => 'Passwords do not match',
+            'role_id.exists' => 'The selected role is invalid. Use User, Author, or Admin.',
         ];
     }
 }

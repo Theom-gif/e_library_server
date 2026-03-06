@@ -9,47 +9,78 @@ use Illuminate\Support\Facades\Hash;
 class UserSeeder extends Seeder
 {
     public function run(): void
-    {   $this->call(UserSeeder::class);
-        DB::table('users')->insert([
+    {
+        $users = [
+
+            // Admins
             [
-                'firstname' => 'Admin',
-                'lastname' => 'Account',
-                'email' => 'admin@example.com',
-                'password' => Hash::make('12345678'),
-                'bio' => 'Main administrator account',
-                'facebook_url' => null,
-                'avatar' => null,
-                'role_id' => 1, // Admin role
-                'email_verified_at' => now(),
-                'created_at' => now(),
-                'updated_at' => now(),
+                'firstname' => 'Admin1',
+                'lastname'  => 'System',
+                'email'     => 'phornya26@gmail.com',
+                'password'  => 'yadmin123',
+                'role_id'   => 1,
             ],
+            [
+                'firstname' => 'Admin2',
+                'lastname'  => 'System',
+                'email'     => 'sokthalyta@gmail.com',
+                'password'  => 'yadmin123',
+                'role_id'   => 1,
+            ],
+            [
+                'firstname' => 'Admin3',
+                'lastname'  => 'System',
+                'email'     => 'sinatlek026@gmail.com',
+                'password'  => 'yadmin123',
+                'role_id'   => 1,
+            ],
+            [
+                'firstname' => 'Admin4',
+                'lastname'  => 'System',
+                'email'     => 'hengliheang91@gmail.com',
+                'password'  => 'yadmin123',
+                'role_id'   => 1,
+            ],
+            [
+                'firstname' => 'Admin5',
+                'lastname'  => 'System',
+                'email'     => 'seylasok311@gmail.com',
+                'password'  => 'yadmin123',
+                'role_id'   => 1,
+            ],
+
+            // Author
             [
                 'firstname' => 'Author',
-                'lastname' => 'Account',
-                'email' => 'author@example.com',
-                'password' => Hash::make('12345678'),
-                'bio' => 'Main administrator account',
-                'facebook_url' => null,
-                'avatar' => null,
-                'role_id' => 2, // Author role
-                'email_verified_at' => now(),
-                'created_at' => now(),
-                'updated_at' => now(),
+                'lastname'  => 'Writer',
+                'email'     => 'author@example.com',
+                'password'  => 'author123',
+                'role_id'   => 2,
             ],
+
+            // User
             [
-                'firstname' => 'Normal',
-                'lastname' => 'User',
-                'email' => 'user@example.com',
-                'password' => Hash::make('12345678'),
-                'bio' => 'Regular user account',
-                'facebook_url' => null,
-                'avatar' => null,
-                'role_id' => 3, // User role
-                'email_verified_at' => now(),
-                'created_at' => now(),
-                'updated_at' => now(),
+                'firstname' => 'Regular',
+                'lastname'  => 'User',
+                'email'     => 'user@example.com',
+                'password'  => 'user123',
+                'role_id'   => 3,
             ],
-        ]);
+        ];
+
+        foreach ($users as $user) {
+            DB::table('users')->updateOrInsert(
+                ['email' => $user['email']],
+                [
+                    'firstname' => $user['firstname'],
+                    'lastname'  => $user['lastname'],
+                    'password'  => Hash::make($user['password']),
+                    'role_id'   => $user['role_id'],
+                    'email_verified_at' => now(),
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]
+            );
+        }
     }
 }
