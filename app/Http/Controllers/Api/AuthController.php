@@ -6,15 +6,18 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\ChangePasswordRequest;
 use App\Http\Requests\LoginRequest;
 use App\Http\Requests\admin\AdminLoginRequest;
+use App\Http\Requests\admin\category\BookUploadRequest;
+use App\Http\Requests\admin\category\BookViewRequest;
 use App\Http\Requests\admin\RegistationAuthor;
-use App\Http\Requests\Admin\Category\BookViewRequest;
 use App\Http\Requests\RegisterRequest;
 use App\Http\Requests\ResetPasswordRequest;
 use App\Http\Requests\UpdateProfileRequest;
+use App\Models\Book;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -313,6 +316,179 @@ class AuthController extends Controller
 
         } catch (\Exception $e) {
             return $this->errorResponse('Change password failed', $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Store a book in database.
+     *
+     * @param BookUploadRequest $request
+     * @return JsonResponse
+     */
+    public function storeBook(BookUploadRequest $request): JsonResponse
+    {
+        try {
+            $validated = $request->validated();
+
+            if ($request->hasFile('cover_image')) {
+                $validated['cover_image_path'] = $request->file('cover_image')->store('books/covers', 'public');
+            }
+
+            if ($request->hasFile('book_file')) {
+                $validated['book_file_path'] = $request->file('book_file')->store('books/files', 'public');
+            }
+
+            if (!isset($validated['user_id']) && $request->user()) {
+                $validated['user_id'] = $request->user()->id;
+            }
+
+            unset($validated['cover_image'], $validated['book_file']);
+
+            $book = Book::create($validated);
+
+            return $this->successResponse($book, 'Book uploaded successfully', 201);
+        } catch (\Exception $e) {
+            return $this->errorResponse('Failed to upload book', $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Get books list from database.
+     *
+     * @return JsonResponse
+     */
+    public function listBooks(): JsonResponse
+    {
+        try {
+            $books = Book::query()->latest('id')->get();
+
+            return $this->successResponse($books, 'Books retrieved successfully', 200);
+        } catch (\Exception $e) {
+            return $this->errorResponse('Failed to retrieve books', $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Import books from old localStorage payload.
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function importBooks(Request $request): JsonResponse
+    {
+        try {
+            $validated = $request->validate([
+                'books' => 'required|array|min:1',
+                'books.*.title' => 'required|string|max:255',
+                'books.*.author' => 'nullable|string|max:255',
+                'books.*.description' => 'nullable|string',
+                'books.*.category' => 'nullable|string|max:255',
+                'books.*.published_year' => 'nullable|integer|min:1000|max:' . (now()->year + 1),
+                'books.*.cover_image_url' => 'nullable|url|max:2048',
+                'books.*.book_file_url' => 'nullable|url|max:2048',
+            ]);
+
+            $created = 0;
+            foreach ($validated['books'] as $item) {
+                $book = new Book();
+                $book->title = $item['title'];
+                $book->author = $item['author'] ?? null;
+                $book->description = $item['description'] ?? null;
+                $book->category = $item['category'] ?? null;
+                $book->published_year = $item['published_year'] ?? null;
+                $book->cover_image_url = $item['cover_image_url'] ?? null;
+                $book->book_file_url = $item['book_file_url'] ?? null;
+                $book->user_id = optional($request->user())->id;
+                $book->save();
+                $created++;
+            }
+
+            return $this->successResponse([
+                'imported_count' => $created,
+            ], 'Books imported successfully', 201);
+        } catch (\Exception $e) {
+            return $this->errorResponse('Failed to import books', $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Update an existing book.
+     *
+     * @param Request $request
+     * @param int $id
+     * @return JsonResponse
+     */
+    public function updateBook(Request $request, int $id): JsonResponse
+    {
+        try {
+            $book = Book::find($id);
+            if (!$book) {
+                return $this->errorResponse('Book not found', null, 404);
+            }
+
+            $validated = $request->validate([
+                'title' => 'sometimes|required|string|max:255',
+                'author' => 'sometimes|nullable|string|max:255',
+                'description' => 'sometimes|nullable|string',
+                'category' => 'sometimes|nullable|string|max:255',
+                'published_year' => 'sometimes|nullable|integer|min:1000|max:' . (now()->year + 1),
+                'cover_image' => 'sometimes|nullable|image|max:5120',
+                'book_file' => 'sometimes|nullable|file|mimes:pdf,epub,doc,docx|max:20480',
+                'cover_image_url' => 'sometimes|nullable|url|max:2048',
+                'book_file_url' => 'sometimes|nullable|url|max:2048',
+            ]);
+
+            if ($request->hasFile('cover_image')) {
+                if ($book->cover_image_path) {
+                    Storage::disk('public')->delete($book->cover_image_path);
+                }
+                $validated['cover_image_path'] = $request->file('cover_image')->store('books/covers', 'public');
+            }
+
+            if ($request->hasFile('book_file')) {
+                if ($book->book_file_path) {
+                    Storage::disk('public')->delete($book->book_file_path);
+                }
+                $validated['book_file_path'] = $request->file('book_file')->store('books/files', 'public');
+            }
+
+            unset($validated['cover_image'], $validated['book_file']);
+
+            $book->update($validated);
+            $book->refresh();
+
+            return $this->successResponse($book, 'Book updated successfully', 200);
+        } catch (\Exception $e) {
+            return $this->errorResponse('Failed to update book', $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Delete an existing book.
+     *
+     * @param int $id
+     * @return JsonResponse
+     */
+    public function deleteBook(int $id): JsonResponse
+    {
+        try {
+            $book = Book::find($id);
+            if (!$book) {
+                return $this->errorResponse('Book not found', null, 404);
+            }
+
+            if ($book->cover_image_path) {
+                Storage::disk('public')->delete($book->cover_image_path);
+            }
+            if ($book->book_file_path) {
+                Storage::disk('public')->delete($book->book_file_path);
+            }
+
+            $book->delete();
+
+            return $this->successResponse(null, 'Book deleted successfully', 200);
+        } catch (\Exception $e) {
+            return $this->errorResponse('Failed to delete book', $e->getMessage(), 500);
         }
     }
 

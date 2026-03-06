@@ -32,7 +32,12 @@ Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
     Route::post('/author_registration', [AuthController::class, 'authorRegister']);
     Route::post('/login', [AuthController::class, 'login']);
-    Route::post('/book', [AuthController::class, 'storeBookView']);
+    Route::post('/book', [AuthController::class, 'storeBook']);
+    Route::get('/books', [AuthController::class, 'listBooks']);
+    Route::post('/books/import-local', [AuthController::class, 'importBooks']);
+    Route::patch('/books/{id}', [AuthController::class, 'updateBook']);
+    Route::delete('/books/{id}', [AuthController::class, 'deleteBook']);
+    Route::post('/book-view', [AuthController::class, 'storeBookView']);
     Route::post('/request-password-reset', [AuthController::class, 'requestPasswordReset']);
     Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 });

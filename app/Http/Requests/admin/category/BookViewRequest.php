@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Requests\Admin\Category;
+namespace App\Http\Requests\admin\category;
 
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -27,20 +27,6 @@ class BookViewRequest extends FormRequest
             'ip_address' => 'nullable|ip',
             'user_agent' => 'nullable|string|max:1000',
             'viewed_at' => 'nullable|date',
-        ];
-    }
-
-    /**
-     * Get custom error messages.
-     */
-    public function messages(): array
-    {
-        return [
-            'book_id.required' => 'Book ID is required.',
-            'book_id.integer' => 'Book ID must be a number.',
-            'user_id.exists' => 'Selected user does not exist.',
-            'ip_address.ip' => 'IP address format is invalid.',
-            'viewed_at.date' => 'Viewed at must be a valid date.',
         ];
     }
 }
