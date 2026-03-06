@@ -22,7 +22,6 @@ use App\Models\User;
 Route::get('/health', function () {
     return response()->json([
         'status' => 'healthy',
-        'Hi' => 'coding',
         'timestamp' => now()->toIso8601String(),
     ]);
 });
