@@ -233,24 +233,49 @@ class AuthController extends Controller
     {
         try {
             $validated = $request->validated();
+            $coverFile = $request->file('cover_image') ?? $request->file('coverImage');
+            $bookFile = $request->file('book_file') ?? $request->file('bookFile');
 
-            if ($request->hasFile('cover_image')) {
-                $validated['cover_image_path'] = $request->file('cover_image')->store('books/covers', 'public');
+            if ($coverFile) {
+                $validated['cover_image_path'] = $coverFile->store('books/covers', 'public');
             }
 
-            if ($request->hasFile('book_file')) {
-                $validated['book_file_path'] = $request->file('book_file')->store('books/files', 'public');
+            if ($bookFile) {
+                $validated['book_file_path'] = $bookFile->store('books/files', 'public');
+            }
+
+            if (!empty($validated['cover_image_path']) && empty($validated['cover_image_url'])) {
+                $validated['cover_image_url'] = url(Storage::disk('public')->url($validated['cover_image_path']));
+            }
+
+            if (!empty($validated['book_file_path']) && empty($validated['book_file_url'])) {
+                $validated['book_file_url'] = url(Storage::disk('public')->url($validated['book_file_path']));
+            }
+
+            if (!empty($validated['cover_image_url']) && str_starts_with((string) $validated['cover_image_url'], 'blob:')) {
+                $validated['cover_image_url'] = null;
             }
 
             if (!isset($validated['user_id']) && $request->user()) {
                 $validated['user_id'] = $request->user()->id;
             }
 
-            unset($validated['cover_image'], $validated['book_file']);
+            unset($validated['cover_image'], $validated['book_file'], $validated['coverImage'], $validated['bookFile'], $validated['coverImageUrl'], $validated['bookFileUrl']);
 
             $book = Book::create($validated);
+            $bookArray = $book->toArray();
+            $bookArray['publishedYear'] = $book->published_year;
+            $bookArray['coverImageUrl'] = $book->cover_image_url;
+            $bookArray['bookFileUrl'] = $book->book_file_url;
+            $bookArray['coverImagePath'] = $book->cover_image_path;
+            $bookArray['bookFilePath'] = $book->book_file_path;
 
-            return $this->successResponse($book, 'Book uploaded successfully', 201);
+            return response()->json([
+                'success' => true,
+                'message' => 'Book uploaded successfully',
+                'data' => $bookArray,
+                'book' => $bookArray,
+            ], 201);
         } catch (\Exception $e) {
             return $this->errorResponse('Failed to upload book', $e->getMessage(), 500);
         }
@@ -259,9 +284,31 @@ class AuthController extends Controller
     public function listBooks(): JsonResponse
     {
         try {
-            $books = Book::query()->latest('id')->get();
+            $books = Book::query()->latest('id')->get()->map(function (Book $book) {
+                if ($book->cover_image_path && !$book->cover_image_url) {
+                    $book->cover_image_url = url(Storage::disk('public')->url($book->cover_image_path));
+                }
+                if ($book->book_file_path && !$book->book_file_url) {
+                    $book->book_file_url = url(Storage::disk('public')->url($book->book_file_path));
+                }
 
-            return $this->successResponse($books, 'Books retrieved successfully', 200);
+                $item = $book->toArray();
+                $item['publishedYear'] = $book->published_year;
+                $item['coverImageUrl'] = $book->cover_image_url;
+                $item['bookFileUrl'] = $book->book_file_url;
+                $item['coverImagePath'] = $book->cover_image_path;
+                $item['bookFilePath'] = $book->book_file_path;
+
+                return $item;
+            })->values();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Books retrieved successfully',
+                'data' => $books,
+                'books' => $books,
+                'results' => $books,
+            ], 200);
         } catch (\Exception $e) {
             return $this->errorResponse('Failed to retrieve books', $e->getMessage(), 500);
         }
@@ -319,26 +366,40 @@ class AuthController extends Controller
                 'category' => 'sometimes|nullable|string|max:255',
                 'published_year' => 'sometimes|nullable|integer|min:1000|max:' . (now()->year + 1),
                 'cover_image' => 'sometimes|nullable|image|max:5120',
+                'coverImage' => 'sometimes|nullable|image|max:5120',
                 'book_file' => 'sometimes|nullable|file|mimes:pdf,epub,doc,docx|max:20480',
+                'bookFile' => 'sometimes|nullable|file|mimes:pdf,epub,doc,docx|max:20480',
                 'cover_image_url' => 'sometimes|nullable|url|max:2048',
+                'coverImageUrl' => 'sometimes|nullable|string|max:2048',
                 'book_file_url' => 'sometimes|nullable|url|max:2048',
+                'bookFileUrl' => 'sometimes|nullable|string|max:2048',
             ]);
+            $coverFile = $request->file('cover_image') ?? $request->file('coverImage');
+            $bookFile = $request->file('book_file') ?? $request->file('bookFile');
 
-            if ($request->hasFile('cover_image')) {
+            if ($coverFile) {
                 if ($book->cover_image_path) {
                     Storage::disk('public')->delete($book->cover_image_path);
                 }
-                $validated['cover_image_path'] = $request->file('cover_image')->store('books/covers', 'public');
+                $validated['cover_image_path'] = $coverFile->store('books/covers', 'public');
             }
 
-            if ($request->hasFile('book_file')) {
+            if ($bookFile) {
                 if ($book->book_file_path) {
                     Storage::disk('public')->delete($book->book_file_path);
                 }
-                $validated['book_file_path'] = $request->file('book_file')->store('books/files', 'public');
+                $validated['book_file_path'] = $bookFile->store('books/files', 'public');
             }
 
-            unset($validated['cover_image'], $validated['book_file']);
+            if (!empty($validated['cover_image_path']) && empty($validated['cover_image_url'])) {
+                $validated['cover_image_url'] = url(Storage::disk('public')->url($validated['cover_image_path']));
+            }
+
+            if (!empty($validated['book_file_path']) && empty($validated['book_file_url'])) {
+                $validated['book_file_url'] = url(Storage::disk('public')->url($validated['book_file_path']));
+            }
+
+            unset($validated['cover_image'], $validated['book_file'], $validated['coverImage'], $validated['bookFile'], $validated['coverImageUrl'], $validated['bookFileUrl']);
 
             $book->update($validated);
             $book->refresh();

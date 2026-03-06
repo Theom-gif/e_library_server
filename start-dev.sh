@@ -41,6 +41,7 @@ echo "  • GET    /api/posts/{id}          - Get a specific post"
 echo "  • PUT    /api/posts/{id}          - Update a post"
 echo "  • DELETE /api/posts/{id}          - Delete a post"
 echo ""
-echo "🌐 Server: http://localhost:8000"
+echo "🌐 Server: http://localhost:8001"
 echo ""
-php artisan serve --port=8000
+php artisan serve --port=8001
+
