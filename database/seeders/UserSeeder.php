@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Hash;
 class UserSeeder extends Seeder
 {
     public function run(): void
-    {
+    {   $this->call(UserSeeder::class);
         DB::table('users')->insert([
             [
                 'firstname' => 'Admin',
@@ -32,7 +32,7 @@ class UserSeeder extends Seeder
                 'bio' => 'Main administrator account',
                 'facebook_url' => null,
                 'avatar' => null,
-                'role_id' => 2, // Admin role
+                'role_id' => 2, // Author role
                 'email_verified_at' => now(),
                 'created_at' => now(),
                 'updated_at' => now(),
