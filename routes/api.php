@@ -3,6 +3,9 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\CategoryController;
+
+Route::apiResource('categories', CategoryController::class);
 
 /*
 |--------------------------------------------------------------------------
@@ -23,11 +26,13 @@ Route::get('/health', function () {
     ]);
 });
 
+
 // Public Authentication Routes
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
     Route::post('/author_registration', [AuthController::class, 'authorRegister']);
     Route::post('/login', [AuthController::class, 'login']);
+    Route::post('/book', [AuthController::class, 'storeBookView']);
     Route::post('/request-password-reset', [AuthController::class, 'requestPasswordReset']);
     Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 });
@@ -47,4 +52,3 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 
 // Example API routes for REST API
 Route::apiResource('posts', \App\Http\Controllers\Api\PostController::class);
-

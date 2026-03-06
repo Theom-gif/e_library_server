@@ -7,6 +7,7 @@ use App\Http\Requests\ChangePasswordRequest;
 use App\Http\Requests\LoginRequest;
 use App\Http\Requests\admin\AdminLoginRequest;
 use App\Http\Requests\admin\RegistationAuthor;
+use App\Http\Requests\Admin\Category\BookViewRequest;
 use App\Http\Requests\RegisterRequest;
 use App\Http\Requests\ResetPasswordRequest;
 use App\Http\Requests\UpdateProfileRequest;
@@ -312,6 +313,34 @@ class AuthController extends Controller
 
         } catch (\Exception $e) {
             return $this->errorResponse('Change password failed', $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Store a book view record.
+     *
+     * @param BookViewRequest $request
+     * @return JsonResponse
+     */
+    public function storeBookView(BookViewRequest $request): JsonResponse
+    {
+        try {
+            $now = now();
+            $bookViewId = DB::table('book_views')->insertGetId([
+                'book_id' => $request->book_id,
+                'user_id' => $request->user_id ?? optional($request->user())->id,
+                'ip_address' => $request->ip_address ?? $request->ip(),
+                'user_agent' => $request->user_agent ?? $request->userAgent(),
+                'viewed_at' => $request->viewed_at ?? $now,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+
+            $bookView = DB::table('book_views')->where('id', $bookViewId)->first();
+
+            return $this->successResponse($bookView, 'Book view saved successfully', 201);
+        } catch (\Exception $e) {
+            return $this->errorResponse('Failed to save book view', $e->getMessage(), 500);
         }
     }
 
