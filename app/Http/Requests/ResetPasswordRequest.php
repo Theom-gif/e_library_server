@@ -1,0 +1,59 @@
+<?php
+
+namespace App\Http\Requests;
+
+use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rules\Password;
+
+class ResetPasswordRequest extends FormRequest
+{
+    /**
+     * Normalize legacy confirmation fields.
+     */
+    protected function prepareForValidation(): void
+    {
+        if (!$this->has('password_confirmation') && $this->has('password_confirm')) {
+            $this->merge(['password_confirmation' => $this->input('password_confirm')]);
+        }
+    }
+
+    /**
+     * Determine if the user is authorized to make this request.
+     */
+    public function authorize(): bool
+    {
+        return true;
+    }
+
+    /**
+     * Get the validation rules that apply to the request.
+     *
+     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array|string>
+     */
+    public function rules(): array
+    {
+        return [
+            'email' => 'required|email|exists:users,email',
+            'token' => 'required|string',
+            'password' => [
+                'required',
+                'confirmed',
+                Password::min(8)
+                    ->mixedCase()
+                    ->numbers()
+                    ->symbols(),
+            ],
+        ];
+    }
+
+    /**
+     * Get custom error messages.
+     */
+    public function messages(): array
+    {
+        return [
+            'email.exists' => 'No user found with this email',
+            'password.confirmed' => 'Passwords do not match',
+        ];
+    }
+}
