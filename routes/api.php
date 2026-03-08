@@ -21,6 +21,11 @@ use App\Models\User;
 // Health check endpoint
 Route::get('/health', function () {
     return response()->json([
+
+        'hosting' => 'success',
+
+
+
         'status' => 'healthy',
         'timestamp' => now()->toIso8601String(),
     ]);
