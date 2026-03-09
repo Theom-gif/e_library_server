@@ -4,25 +4,50 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-<<<<<<< HEAD
 use Illuminate\Http\UploadedFile;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Storage;
 
 class Book extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
+        'category_id',
+        'author_id',
+        'approved_by',
         'title',
+        'slug',
+        'author_name',
         'author',
         'description',
         'category',
         'published_year',
         'user_id',
+        'pdf_path',
+        'original_pdf_name',
+        'pdf_mime_type',
         'cover_image_path',
+        'original_cover_name',
+        'cover_mime_type',
         'book_file_path',
         'cover_image_url',
         'book_file_url',
+        'file_size_bytes',
+        'total_pages',
+        'language',
+        'status',
+        'approved_at',
+        'rejection_reason',
+        'published_at',
+        'total_reads',
+        'average_rating',
+    ];
+
+    protected $casts = [
+        'approved_at' => 'datetime',
+        'published_at' => 'datetime',
+        'average_rating' => 'float',
     ];
 
     /**
@@ -75,43 +100,7 @@ class Book extends Model
         $item['bookFilePath'] = $this->book_file_path;
 
         return $item;
-=======
-use Illuminate\Database\Eloquent\SoftDeletes;
-
-class Book extends Model
-{
-    use HasFactory, SoftDeletes;
-
-    protected $fillable = [
-        'category_id',
-        'author_id',
-        'approved_by',
-        'title',
-        'slug',
-        'description',
-        'author_name',
-        'pdf_path',
-        'original_pdf_name',
-        'pdf_mime_type',
-        'cover_image_path',
-        'original_cover_name',
-        'cover_mime_type',
-        'file_size_bytes',
-        'total_pages',
-        'language',
-        'status',
-        'approved_at',
-        'rejection_reason',
-        'published_at',
-        'total_reads',
-        'average_rating',
-    ];
-
-    protected $casts = [
-        'approved_at' => 'datetime',
-        'published_at' => 'datetime',
-        'average_rating' => 'float',
-    ];
+    }
 
     public function category()
     {
@@ -126,6 +115,5 @@ class Book extends Model
     public function approver()
     {
         return $this->belongsTo(User::class, 'approved_by');
->>>>>>> cfcb6af5bd5dc42baafef2d32df9a8686b18bc98
     }
 }

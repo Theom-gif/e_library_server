@@ -186,7 +186,6 @@ class AuthController extends Controller
         return $this->successResponse(null, 'Password changed successfully', 200);
     }
 
-<<<<<<< HEAD
     /*
     |--------------------------------------------------------------------------
     | Book APIs
@@ -367,16 +366,9 @@ class AuthController extends Controller
         }
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Helper Methods
-    |--------------------------------------------------------------------------
-    */
-=======
     // --------------------------------------
     // Helper Methods
     // --------------------------------------
->>>>>>> cfcb6af5bd5dc42baafef2d32df9a8686b18bc98
     private function successResponse($data, string $message, int $code = 200): JsonResponse
     {
         return response()->json([

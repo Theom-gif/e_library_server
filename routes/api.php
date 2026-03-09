@@ -1,16 +1,13 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
-<<<<<<< HEAD
-use App\Http\Controllers\Api\BookController;
-use App\Http\Controllers\Api\CategoryController;
-Route::apiResource('categories', CategoryController::class);
-=======
 use App\Http\Controllers\Api\AdminSettingsController;
 use App\Http\Controllers\Api\AdminUserController;
+use App\Http\Controllers\Api\BookController;
 use App\Http\Controllers\Api\BookWorkflowController;
->>>>>>> cfcb6af5bd5dc42baafef2d32df9a8686b18bc98
+use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\PostController;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 
@@ -52,6 +49,7 @@ Route::prefix('auth')->group(function () {
     Route::post('/request-password-reset', [AuthController::class, 'requestPasswordReset']);
     Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 });
+Route::apiResource('categories', CategoryController::class);
 
 // Compatibility Book Routes (no /auth prefix) for frontend clients
 Route::get('/books', [AuthController::class, 'listBooks']);
@@ -69,7 +67,6 @@ Route::middleware('auth:sanctum')->prefix('auth')->group(function () {
     Route::post('/change-password', [AuthController::class, 'changePassword']);
 });
 
-<<<<<<< HEAD
 // Protected User Routes
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
@@ -77,13 +74,12 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 
 // Example API routes for REST API
 Route::apiResource('posts', PostController::class);
-=======
+
 // Protected API routes (require auth)
 Route::middleware('auth:sanctum')->group(function () {
     // Example: Posts API
     Route::apiResource('posts', PostController::class);
 });
-<<<<<<< HEAD
 
 // Public approved books (read + cover preview)
 Route::get('/books', [BookWorkflowController::class, 'approvedBooks'])->name('api.books.index');
@@ -119,6 +115,3 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(functi
     Route::get('/books/pending', [BookWorkflowController::class, 'pendingBooks']);
     Route::patch('/books/{book}/review', [BookWorkflowController::class, 'review']);
 });
-=======
->>>>>>> 6b204d3f9d2dd57488d4be054420c060758c94ed
->>>>>>> cfcb6af5bd5dc42baafef2d32df9a8686b18bc98
