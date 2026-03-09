@@ -39,14 +39,14 @@ class UserSeeder extends Seeder
                 'lastname'  => 'System',
                 'email'     => 'hengliheang91@gmail.com',
                 'password'  => 'yadmin123',
-                'role_id'   => 1,
+                'role_id'   => 3,
             ],
             [
                 'firstname' => 'Admin5',
                 'lastname'  => 'System',
                 'email'     => 'seylasok311@gmail.com',
                 'password'  => 'yadmin123',
-                'role_id'   => 1,
+                'role_id'   => 2,
             ],
 
             // Author

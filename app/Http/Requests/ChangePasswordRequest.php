@@ -12,8 +12,44 @@ class ChangePasswordRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
-        if (!$this->has('new_password_confirmation') && $this->has('new_password_confirm')) {
-            $this->merge(['new_password_confirmation' => $this->input('new_password_confirm')]);
+        if (!$this->filled('current_password')) {
+            $this->merge([
+                'current_password' => $this->input(
+                    'currentPassword',
+                    $this->input(
+                        'old_password',
+                        $this->input('oldPassword', $this->input('current'))
+                    )
+                ),
+            ]);
+        }
+
+        if (!$this->filled('new_password')) {
+            $this->merge([
+                'new_password' => $this->input(
+                    'newPassword',
+                    $this->input('password', $this->input('new', $this->input('new_pass')))
+                ),
+            ]);
+        }
+
+        if (!$this->filled('new_password_confirmation')) {
+            $this->merge([
+                'new_password_confirmation' => $this->input(
+                    'new_password_confirm',
+                    'newPasswordConfirmation',
+                    $this->input(
+                        'confirmNewPassword',
+                        $this->input(
+                            'confirm_new_password',
+                            $this->input(
+                                'confirm_password',
+                                $this->input('confirmPassword', $this->input('password_confirmation'))
+                            )
+                        )
+                    )
+                ),
+            ]);
         }
     }
 
