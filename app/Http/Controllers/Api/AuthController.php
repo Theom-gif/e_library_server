@@ -11,6 +11,7 @@ use App\Http\Requests\ResetPasswordRequest;
 use App\Http\Requests\UpdateProfileRequest;
 use App\Http\Requests\admin\RegistationAuthor;
 use App\Models\Book;
+use App\Models\Category;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -19,6 +20,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class AuthController extends Controller
 {
@@ -192,23 +194,23 @@ class AuthController extends Controller
     |--------------------------------------------------------------------------
     */
 
-    public function listBooks(): JsonResponse
+    public function listBooks(Request $request): JsonResponse
     {
         try {
-            $books = Book::query()->latest('id')->get()->map(function (Book $book) {
-                if ($book->cover_image_path && !$book->cover_image_url) {
-                    $book->cover_image_url = url(Storage::disk('public')->url($book->cover_image_path));
-                }
-                if ($book->book_file_path && !$book->book_file_url) {
-                    $book->book_file_url = url(Storage::disk('public')->url($book->book_file_path));
-                }
+            $includeDeleted = in_array(
+                strtolower((string) $request->query('include_deleted', '0')),
+                ['1', 'true', 'yes'],
+                true
+            );
 
-                $item = $book->toArray();
-                $item['publishedYear'] = $book->published_year;
-                $item['coverImageUrl'] = $book->cover_image_url;
-                $item['bookFileUrl'] = $book->book_file_url;
-                $item['coverImagePath'] = $book->cover_image_path;
-                $item['bookFilePath'] = $book->book_file_path;
+            $query = Book::query()->latest('id');
+            if ($includeDeleted) {
+                $query->withTrashed();
+            }
+
+            $books = $query->get()->map(function (Book $book) {
+                $item = $book->toApiArray();
+                $item['is_deleted'] = $book->trashed();
 
                 return $item;
             })->values();
@@ -271,22 +273,40 @@ class AuthController extends Controller
             }
 
             $validated = $request->validate([
+                'category_id' => 'sometimes|nullable|integer|exists:categories,id',
+                'author_id' => 'sometimes|nullable|integer|exists:users,id',
+                'approved_by' => 'sometimes|nullable|integer|exists:users,id',
                 'title' => 'sometimes|required|string|max:255',
+                'slug' => ['sometimes', 'required', 'string', 'max:255', Rule::unique('books', 'slug')->ignore($book->id)],
                 'author' => 'sometimes|nullable|string|max:255',
+                'author_name' => 'sometimes|nullable|string|max:255',
                 'description' => 'sometimes|nullable|string',
                 'category' => 'sometimes|nullable|string|max:255',
                 'published_year' => 'sometimes|nullable|integer|min:1000|max:' . (now()->year + 1),
+                'pdf_path' => 'sometimes|nullable|string|max:2048',
+                'book_file_path' => 'sometimes|nullable|string|max:2048',
+                'cover_image_path' => 'sometimes|nullable|string|max:2048',
                 'cover_image' => 'sometimes|nullable|image|max:5120',
                 'coverImage' => 'sometimes|nullable|image|max:5120',
                 'book_file' => 'sometimes|nullable|file|mimes:pdf,epub,doc,docx|max:20480',
                 'bookFile' => 'sometimes|nullable|file|mimes:pdf,epub,doc,docx|max:20480',
-                'cover_image_url' => 'sometimes|nullable|url|max:2048',
+                'cover_image_url' => 'sometimes|nullable|string|max:2048',
                 'coverImageUrl' => 'sometimes|nullable|string|max:2048',
-                'book_file_url' => 'sometimes|nullable|url|max:2048',
+                'book_file_url' => 'sometimes|nullable|string|max:2048',
                 'bookFileUrl' => 'sometimes|nullable|string|max:2048',
+                'status' => ['sometimes', 'nullable', Rule::in(['pending', 'approved', 'rejected'])],
+                'approved_at' => 'sometimes|nullable|date',
+                'rejection_reason' => 'sometimes|nullable|string',
+                'published_at' => 'sometimes|nullable|date',
+                'language' => 'sometimes|nullable|string|max:12',
+                'total_pages' => 'sometimes|nullable|integer|min:1',
+                'file_size_bytes' => 'sometimes|nullable|integer|min:0',
             ]);
+
             $coverFile = $request->file('cover_image') ?? $request->file('coverImage');
             $bookFile = $request->file('book_file') ?? $request->file('bookFile');
+            $bookFileUrl = $validated['book_file_url'] ?? $validated['bookFileUrl'] ?? null;
+            $coverImageUrl = $validated['cover_image_url'] ?? $validated['coverImageUrl'] ?? null;
 
             if ($coverFile) {
                 if ($book->cover_image_path) {
@@ -296,26 +316,89 @@ class AuthController extends Controller
             }
 
             if ($bookFile) {
-                if ($book->book_file_path) {
-                    Storage::disk('public')->delete($book->book_file_path);
+                $oldPdfPath = $book->pdf_path ?: $book->book_file_path;
+                if ($oldPdfPath && !preg_match('/^(https?:|data:)/i', (string) $oldPdfPath)) {
+                    Storage::disk('public')->delete($oldPdfPath);
                 }
-                $validated['book_file_path'] = $bookFile->store('books/files', 'public');
+                $validated['pdf_path'] = $bookFile->store('books/pdfs', 'public');
+                $validated['book_file_path'] = $validated['pdf_path'];
+                $validated['original_pdf_name'] = $bookFile->getClientOriginalName();
+                $validated['pdf_mime_type'] = $bookFile->getClientMimeType();
+                $validated['file_size_bytes'] = $bookFile->getSize();
             }
 
             if (!empty($validated['cover_image_path']) && empty($validated['cover_image_url'])) {
                 $validated['cover_image_url'] = url(Storage::disk('public')->url($validated['cover_image_path']));
             }
 
-            if (!empty($validated['book_file_path']) && empty($validated['book_file_url'])) {
-                $validated['book_file_url'] = url(Storage::disk('public')->url($validated['book_file_path']));
+            if (!empty($validated['pdf_path']) && empty($validated['book_file_url'])) {
+                $validated['book_file_url'] = url(Storage::disk('public')->url($validated['pdf_path']));
             }
 
-            unset($validated['cover_image'], $validated['book_file'], $validated['coverImage'], $validated['bookFile'], $validated['coverImageUrl'], $validated['bookFileUrl']);
+            if (!$coverFile && is_string($coverImageUrl) && $coverImageUrl !== '') {
+                $validated['cover_image_url'] = $coverImageUrl;
+            }
 
-            $book->update($validated);
+            if (!$bookFile && is_string($bookFileUrl) && $bookFileUrl !== '') {
+                $validated['book_file_url'] = $bookFileUrl;
+                $validated['pdf_path'] = $bookFileUrl;
+                $validated['book_file_path'] = $bookFileUrl;
+            }
+
+            if (array_key_exists('author', $validated)) {
+                $validated['author_name'] = $validated['author'];
+            }
+            if (array_key_exists('author_name', $validated) && !array_key_exists('author', $validated)) {
+                $validated['author'] = $validated['author_name'];
+            }
+
+            if (array_key_exists('category', $validated)) {
+                $categoryName = trim((string) $validated['category']);
+                if ($categoryName !== '') {
+                    $existingCategory = Category::query()
+                        ->whereRaw('LOWER(TRIM(name)) = ?', [Str::lower($categoryName)])
+                        ->first();
+
+                    if (!$existingCategory) {
+                        $baseSlug = Str::slug($categoryName) ?: 'category';
+                        $slug = $baseSlug;
+                        $counter = 2;
+                        while (Category::query()->where('slug', $slug)->exists()) {
+                            $slug = $baseSlug.'-'.$counter;
+                            $counter++;
+                        }
+
+                        $existingCategory = Category::create([
+                            'name' => $categoryName,
+                            'slug' => $slug,
+                            'is_active' => true,
+                        ]);
+                    }
+
+                    $validated['category_id'] = $existingCategory->id;
+                    $validated['category'] = $existingCategory->name;
+                }
+            }
+            if (array_key_exists('category_id', $validated) && $validated['category_id']) {
+                $existingCategory = Category::query()->find($validated['category_id']);
+                if ($existingCategory) {
+                    $validated['category'] = $existingCategory->name;
+                }
+            }
+
+            unset(
+                $validated['cover_image'],
+                $validated['book_file'],
+                $validated['coverImage'],
+                $validated['bookFile'],
+                $validated['coverImageUrl'],
+                $validated['bookFileUrl']
+            );
+
+            $book->update(Book::compatibleAttributes($validated));
             $book->refresh();
 
-            return $this->successResponse($book, 'Book updated successfully', 200);
+            return $this->successResponse($book->toApiArray(), 'Book updated successfully', 200);
         } catch (\Exception $e) {
             return $this->errorResponse('Failed to update book', $e->getMessage(), 500);
         }
@@ -324,7 +407,7 @@ class AuthController extends Controller
     public function deleteBook(int $id): JsonResponse
     {
         try {
-            $book = Book::find($id);
+            $book = Book::withTrashed()->find($id);
             if (!$book) {
                 return $this->errorResponse('Book not found', null, 404);
             }
@@ -332,11 +415,19 @@ class AuthController extends Controller
             if ($book->cover_image_path) {
                 Storage::disk('public')->delete($book->cover_image_path);
             }
-            if ($book->book_file_path) {
-                Storage::disk('public')->delete($book->book_file_path);
+
+            $bookAssetPaths = array_filter([
+                $book->pdf_path,
+                $book->book_file_path,
+            ]);
+            foreach (array_unique($bookAssetPaths) as $path) {
+                if (!preg_match('/^(https?:|data:)/i', (string) $path)) {
+                    Storage::disk('public')->delete($path);
+                }
             }
 
-            $book->delete();
+            // Permanently remove the record so it does not remain as a soft-deleted row.
+            $book->forceDelete();
 
             return $this->successResponse(null, 'Book deleted successfully', 200);
         } catch (\Exception $e) {

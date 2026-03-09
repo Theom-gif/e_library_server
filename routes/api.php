@@ -50,6 +50,8 @@ Route::prefix('auth')->group(function () {
     Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 });
 Route::apiResource('categories', CategoryController::class);
+Route::get('/category', [CategoryController::class, 'index']);
+Route::get('/categories/all', [CategoryController::class, 'index']);
 
 // Compatibility Book Routes (no /auth prefix) for frontend clients
 Route::get('/books', [AuthController::class, 'listBooks']);
@@ -58,6 +60,11 @@ Route::patch('/books/{id}', [AuthController::class, 'updateBook']);
 Route::delete('/books/{id}', [AuthController::class, 'deleteBook']);
 Route::get('/book', [AuthController::class, 'listBooks']);
 Route::post('/book', [BookController::class, 'store']);
+Route::post('/author/upload', [BookController::class, 'store']);
+Route::post('/author/books/upload', [BookController::class, 'store']);
+Route::post('/author/books/create', [BookController::class, 'store']);
+Route::get('/author/categories', [CategoryController::class, 'index']);
+Route::get('/author/books/categories', [CategoryController::class, 'index']);
 
 // Protected Authentication Routes (require auth token)
 Route::middleware('auth:sanctum')->prefix('auth')->group(function () {

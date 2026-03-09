@@ -6,11 +6,15 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 
 class Book extends Model
 {
     use HasFactory, SoftDeletes;
+
+    /** @var array<int, string>|null */
+    private static ?array $booksTableColumns = null;
 
     protected $fillable = [
         'category_id',
@@ -82,7 +86,35 @@ class Book extends Model
             $attributes['bookFileUrl']
         );
 
-        return self::create($attributes);
+        return self::persistCompatible($attributes);
+    }
+
+    /**
+     * Persist only attributes that exist in the current books table.
+     *
+     * @param  array<string, mixed>  $attributes
+     */
+    public static function persistCompatible(array $attributes): self
+    {
+        return self::create(self::compatibleAttributes($attributes));
+    }
+
+    /**
+     * Filter an attribute array so it contains only real table columns.
+     *
+     * @param  array<string, mixed>  $attributes
+     * @return array<string, mixed>
+     */
+    public static function compatibleAttributes(array $attributes): array
+    {
+        $columns = self::getBooksTableColumns();
+        if (empty($columns)) {
+            return $attributes;
+        }
+
+        $allowed = array_flip($columns);
+
+        return array_intersect_key($attributes, $allowed);
     }
 
     /**
@@ -93,13 +125,55 @@ class Book extends Model
     public function toApiArray(): array
     {
         $item = $this->toArray();
-        $item['publishedYear'] = $this->published_year;
-        $item['coverImageUrl'] = $this->cover_image_url;
-        $item['bookFileUrl'] = $this->book_file_url;
+
+        $coverUrl = $this->resolveAssetUrl($this->cover_image_path) ?? ($item['cover_image_url'] ?? null);
+        $bookUrl = $this->resolveAssetUrl($this->pdf_path ?? null) ?? ($item['book_file_url'] ?? null);
+
+        // Keep legacy keys for existing frontend pages while using new schema fields.
+        $item['author'] = $item['author'] ?? $this->author_name;
+        $item['category'] = $item['category'] ?? $this->category?->name;
+        $item['published_year'] = $item['published_year'] ?? null;
+        $item['cover_image_url'] = $coverUrl;
+        $item['book_file_url'] = $bookUrl;
+        $item['book_file_path'] = $item['book_file_path'] ?? ($this->pdf_path ?? null);
+
+        $item['publishedYear'] = $item['published_year'];
+        $item['coverImageUrl'] = $item['cover_image_url'];
+        $item['bookFileUrl'] = $item['book_file_url'];
         $item['coverImagePath'] = $this->cover_image_path;
-        $item['bookFilePath'] = $this->book_file_path;
+        $item['bookFilePath'] = $item['book_file_path'];
 
         return $item;
+    }
+
+    private static function getBooksTableColumns(): array
+    {
+        if (self::$booksTableColumns !== null) {
+            return self::$booksTableColumns;
+        }
+
+        if (!Schema::hasTable('books')) {
+            self::$booksTableColumns = [];
+            return self::$booksTableColumns;
+        }
+
+        self::$booksTableColumns = Schema::getColumnListing('books');
+
+        return self::$booksTableColumns;
+    }
+
+    private function resolveAssetUrl(?string $pathOrUrl): ?string
+    {
+        $value = trim((string) $pathOrUrl);
+        if ($value === '') {
+            return null;
+        }
+
+        if (preg_match('/^(https?:|data:)/i', $value)) {
+            return $value;
+        }
+
+        return url(Storage::disk('public')->url($value));
     }
 
     public function category()

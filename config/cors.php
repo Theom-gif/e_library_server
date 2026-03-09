@@ -7,7 +7,9 @@ return [
 
     'allowed_origins' => explode(',', env('CORS_ALLOWED_ORIGINS', '*')),
 
-    'allowed_origins_patterns' => [],
+    'allowed_origins_patterns' => [
+        '#^https?://192\.168\.\d{1,3}\.\d{1,3}(:\d+)?$#',
+    ],
 
     'allowed_headers' => ['*'],
 
@@ -15,6 +17,5 @@ return [
 
     'max_age' => 0,
 
-    'supports_credentials' => false,
+    'supports_credentials' => true,
 ];
-
