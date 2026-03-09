@@ -53,7 +53,6 @@ Route::middleware('auth:sanctum')->group(function () {
     // Example: Posts API
     Route::apiResource('posts', PostController::class);
 });
-
 // Public approved books (read + cover preview)
 Route::get('/books', [BookWorkflowController::class, 'approvedBooks'])->name('api.books.index');
 Route::get('/books/discover', [BookWorkflowController::class, 'discoverBooks'])->name('api.books.discover');
