@@ -9,3 +9,10 @@ Route::get('/', function () {
         'api_health' => url('/api/health'),
     ]);
 });
+
+Route::get('/health', function () {
+    return response()->json([
+        'status' => 'healthy',
+        'timestamp' => now()->toIso8601String(),
+    ]);
+});

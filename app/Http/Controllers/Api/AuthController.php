@@ -22,8 +22,9 @@ use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
-    // register user
-    
+    // --------------------------------------
+    // Register User
+    // --------------------------------------
     public function register(RegisterRequest $request): JsonResponse
     {
         try {
@@ -31,7 +32,7 @@ class AuthController extends Controller
                 'firstname' => $request->firstname,
                 'lastname'  => $request->lastname,
                 'email'     => $request->email,
-                'password'  => $request->password, // auto hashed by model
+                'password'  => $request->password, // auto-hashed by model
                 'role_id'   => $request->role_id,
             ]);
 
@@ -47,25 +48,23 @@ class AuthController extends Controller
         }
     }
 
+    // --------------------------------------
     // Register Author
-
+    // --------------------------------------
     public function authorRegister(RegistationAuthor $request): JsonResponse
     {
         return $this->register($request);
     }
 
-    // Login User
-
+    // --------------------------------------
+    // Login
+    // --------------------------------------
     public function login(LoginRequest $request): JsonResponse
     {
         $user = User::where('email', $request->email)->first();
 
-        if (!$user) {
-            return $this->errorResponse('Invalid credentials', 'User not found', 401);
-        }
-
-        if (!Hash::check($request->password, $user->password)) {
-            return $this->errorResponse('Invalid credentials', 'Incorrect password', 401);
+        if (!$user || !Hash::check($request->password, $user->password)) {
+            return $this->errorResponse('Invalid credentials', 'Email or password is incorrect', 401);
         }
 
         $token = $user->createToken('auth_token')->plainTextToken;
@@ -76,12 +75,9 @@ class AuthController extends Controller
         ], 'Login successful', 200);
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Logout
-    |--------------------------------------------------------------------------
-    */
-
+    // --------------------------------------
+    // Logout
+    // --------------------------------------
     public function logout(Request $request): JsonResponse
     {
         $request->user()->currentAccessToken()->delete();
@@ -89,12 +85,9 @@ class AuthController extends Controller
         return $this->successResponse(null, 'Logout successful', 200);
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Request Password Reset
-    |--------------------------------------------------------------------------
-    */
-
+    // --------------------------------------
+    // Request Password Reset
+    // --------------------------------------
     public function requestPasswordReset(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
@@ -117,17 +110,14 @@ class AuthController extends Controller
             ]
         );
 
-        // TODO: Send email with $token
+        // TODO: Send $token via email
 
         return $this->successResponse(null, 'Password reset link sent to your email', 200);
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Reset Password
-    |--------------------------------------------------------------------------
-    */
-
+    // --------------------------------------
+    // Reset Password
+    // --------------------------------------
     public function resetPassword(ResetPasswordRequest $request): JsonResponse
     {
         $resetRecord = DB::table('password_reset_tokens')
@@ -143,25 +133,16 @@ class AuthController extends Controller
         }
 
         $user = User::where('email', $request->email)->first();
+        $user->update(['password' => $request->password]);
 
-        // IMPORTANT: no Hash::make here (model auto-hashes)
-        $user->update([
-            'password' => $request->password,
-        ]);
-
-        DB::table('password_reset_tokens')
-            ->where('email', $request->email)
-            ->delete();
+        DB::table('password_reset_tokens')->where('email', $request->email)->delete();
 
         return $this->successResponse(null, 'Password reset successfully', 200);
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Get Current User
-    |--------------------------------------------------------------------------
-    */
-
+    // --------------------------------------
+    // Get Current User (Dashboard API)
+    // --------------------------------------
     public function getCurrentUser(Request $request): JsonResponse
     {
         return $this->successResponse(
@@ -171,12 +152,9 @@ class AuthController extends Controller
         );
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Update Profile
-    |--------------------------------------------------------------------------
-    */
-
+    // --------------------------------------
+    // Update Profile
+    // --------------------------------------
     public function updateProfile(UpdateProfileRequest $request): JsonResponse
     {
         $request->user()->update($request->only([
@@ -194,34 +172,21 @@ class AuthController extends Controller
         );
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Change Password
-    |--------------------------------------------------------------------------
-    */
-
+    // --------------------------------------
+    // Change Password
+    // --------------------------------------
     public function changePassword(ChangePasswordRequest $request): JsonResponse
     {
         if (!Hash::check($request->current_password, $request->user()->password)) {
-            return $this->errorResponse(
-                'Invalid password',
-                'Current password is incorrect',
-                401
-            );
+            return $this->errorResponse('Current password is incorrect', null, 401);
         }
 
-        // No Hash::make needed (model auto-hashes)
-        $request->user()->update([
-            'password' => $request->new_password,
-        ]);
+        $request->user()->update(['password' => $request->new_password]);
 
-        return $this->successResponse(
-            null,
-            'Password changed successfully',
-            200
-        );
+        return $this->successResponse(null, 'Password changed successfully', 200);
     }
 
+<<<<<<< HEAD
     /*
     |--------------------------------------------------------------------------
     | Book APIs
@@ -407,6 +372,11 @@ class AuthController extends Controller
     | Helper Methods
     |--------------------------------------------------------------------------
     */
+=======
+    // --------------------------------------
+    // Helper Methods
+    // --------------------------------------
+>>>>>>> cfcb6af5bd5dc42baafef2d32df9a8686b18bc98
     private function successResponse($data, string $message, int $code = 200): JsonResponse
     {
         return response()->json([

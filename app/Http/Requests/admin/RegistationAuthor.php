@@ -1,25 +1,50 @@
 <?php
 
-namespace App\Http\Requests;
+namespace App\Http\Requests\admin;
 
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rules\Password;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\Rules\Password;
 
 class RegistationAuthor extends FormRequest
 {
-    /**
-     * Normalize legacy confirmation fields.
-     */
     protected function prepareForValidation(): void
     {
-        if (!$this->has('password_confirmation') && $this->has('password_confirm')) {
-            $this->merge(['password_confirmation' => $this->input('password_confirm')]);
+        $this->ensureDefaultRolesExist();
+
+        if (!$this->has('firstname')) {
+            $this->merge([
+                'firstname' => $this->input('first_name', $this->input('firstName')),
+            ]);
         }
 
+        if (!$this->has('lastname')) {
+            $this->merge([
+                'lastname' => $this->input('last_name', $this->input('lastName')),
+            ]);
+        }
+
+        if (!$this->has('password_confirmation')) {
+            $this->merge([
+                'password_confirmation' => $this->input(
+                    'password_confirm',
+                    $this->input('confirm_password', $this->input('confirmPassword', $this->input('passwordConfirmation')))
+                ),
+            ]);
+        }
+
+        if (!$this->has('role_id') && $this->has('roleId')) {
+            $this->merge([
+                'role_id' => $this->input('roleId'),
+            ]);
+        }
+
+        // Default author registration to Author role when client omits role
+        // or sends an empty/null value.
         $roleInput = $this->input('role_id', $this->input('role_name', $this->input('role')));
         if ($roleInput === null || $roleInput === '') {
-            return;
+            $roleInput = 'Author';
         }
 
         if (is_numeric($roleInput)) {
@@ -28,27 +53,50 @@ class RegistationAuthor extends FormRequest
         }
 
         $roleId = DB::table('roles')
-            ->whereRaw('LOWER(role_name) = ?', [strtolower(trim((string) $roleInput))])
-            ->value('role_id');
+            ->whereRaw('LOWER(TRIM(name)) = ?', [strtolower(trim((string) $roleInput))])
+            ->value('id');
 
         if ($roleId !== null) {
             $this->merge(['role_id' => (int) $roleId]);
         }
     }
 
-    /**
-     * Determine if the user is authorized to make this request.
-     */
+    private function ensureDefaultRolesExist(): void
+    {
+        if (!Schema::hasTable('roles') || DB::table('roles')->exists()) {
+            return;
+        }
+
+        DB::table('roles')->insert([
+            [
+                'id' => 1,
+                'name' => 'Admin',
+                'description' => 'Administrator with full access',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 2,
+                'name' => 'Author',
+                'description' => 'Author with limited access',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 3,
+                'name' => 'User',
+                'description' => 'Regular user with basic access',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
+    }
+
     public function authorize(): bool
     {
         return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array|string>
-     */
     public function rules(): array
     {
         return [
@@ -63,20 +111,21 @@ class RegistationAuthor extends FormRequest
                     ->numbers()
                     ->symbols(),
             ],
-            'role_id' => 'required|integer|exists:roles,role_id',
+            'role_id' => 'required|integer|exists:roles,id',
         ];
     }
 
-    /**
-     * Get custom error messages.
-     */
     public function messages(): array
     {
         return [
-            'firstname.required' => 'First name is required',
-            'lastname.required' => 'Last name is required',
-            'email.unique' => 'This email is already registered',
-            'password.confirmed' => 'Passwords do not match',
+            'firstname.required' => 'First name is required.',
+            'lastname.required' => 'Last name is required.',
+            'email.required' => 'Email is required.',
+            'email.email' => 'Please provide a valid email.',
+            'email.unique' => 'This email is already registered.',
+            'password.required' => 'Password is required.',
+            'password.confirmed' => 'Passwords do not match.',
+            'role_id.required' => 'Role is required.',
             'role_id.exists' => 'The selected role is invalid. Use User, Author, or Admin.',
         ];
     }
