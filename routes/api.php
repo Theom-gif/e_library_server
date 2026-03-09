@@ -21,6 +21,11 @@ use Illuminate\Support\Facades\Route;
 // Health check endpoint
 Route::get('/health', function () {
     return response()->json([
+
+        'hosting' => 'success',
+
+
+
         'status' => 'healthy',
         'timestamp' => now()->toIso8601String(),
     ]);
@@ -48,6 +53,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Example: Posts API
     Route::apiResource('posts', PostController::class);
 });
+<<<<<<< HEAD
 
 // Public approved books (read + cover preview)
 Route::get('/books', [BookWorkflowController::class, 'approvedBooks'])->name('api.books.index');
@@ -83,3 +89,5 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(functi
     Route::get('/books/pending', [BookWorkflowController::class, 'pendingBooks']);
     Route::patch('/books/{book}/review', [BookWorkflowController::class, 'review']);
 });
+=======
+>>>>>>> 6b204d3f9d2dd57488d4be054420c060758c94ed
