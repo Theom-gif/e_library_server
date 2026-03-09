@@ -3,6 +3,7 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\BookController;
 use App\Http\Controllers\Api\CategoryController;
 Route::apiResource('categories', CategoryController::class);
 use App\Http\Controllers\Api\PostController;
@@ -31,7 +32,7 @@ Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
     Route::post('/author_registration', [AuthController::class, 'authorRegister']);
     Route::post('/login', [AuthController::class, 'login']);
-    Route::post('/book', [AuthController::class, 'storeBook']);
+    Route::post('/book', [BookController::class, 'store']);
     Route::get('/books', [AuthController::class, 'listBooks']);
     Route::post('/books/import-local', [AuthController::class, 'importBooks']);
     Route::patch('/books/{id}', [AuthController::class, 'updateBook']);
@@ -43,11 +44,11 @@ Route::prefix('auth')->group(function () {
 
 // Compatibility Book Routes (no /auth prefix) for frontend clients
 Route::get('/books', [AuthController::class, 'listBooks']);
-Route::post('/books', [AuthController::class, 'storeBook']);
+Route::post('/books', [BookController::class, 'store']);
 Route::patch('/books/{id}', [AuthController::class, 'updateBook']);
 Route::delete('/books/{id}', [AuthController::class, 'deleteBook']);
 Route::get('/book', [AuthController::class, 'listBooks']);
-Route::post('/book', [AuthController::class, 'storeBook']);
+Route::post('/book', [BookController::class, 'store']);
 
 // Protected Authentication Routes (require auth token)
 Route::middleware('auth:sanctum')->prefix('auth')->group(function () {

@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ChangePasswordRequest;
 use App\Http\Requests\LoginRequest;
-use App\Http\Requests\admin\category\BookUploadRequest;
 use App\Http\Requests\admin\category\BookViewRequest;
 use App\Http\Requests\RegisterRequest;
 use App\Http\Requests\ResetPasswordRequest;
@@ -228,58 +227,6 @@ class AuthController extends Controller
     | Book APIs
     |--------------------------------------------------------------------------
     */
-
-    public function storeBook(BookUploadRequest $request): JsonResponse
-    {
-        try {
-            $validated = $request->validated();
-            $coverFile = $request->file('cover_image') ?? $request->file('coverImage');
-            $bookFile = $request->file('book_file') ?? $request->file('bookFile');
-
-            if ($coverFile) {
-                $validated['cover_image_path'] = $coverFile->store('books/covers', 'public');
-            }
-
-            if ($bookFile) {
-                $validated['book_file_path'] = $bookFile->store('books/files', 'public');
-            }
-
-            if (!empty($validated['cover_image_path']) && empty($validated['cover_image_url'])) {
-                $validated['cover_image_url'] = url(Storage::disk('public')->url($validated['cover_image_path']));
-            }
-
-            if (!empty($validated['book_file_path']) && empty($validated['book_file_url'])) {
-                $validated['book_file_url'] = url(Storage::disk('public')->url($validated['book_file_path']));
-            }
-
-            if (!empty($validated['cover_image_url']) && str_starts_with((string) $validated['cover_image_url'], 'blob:')) {
-                $validated['cover_image_url'] = null;
-            }
-
-            if (!isset($validated['user_id']) && $request->user()) {
-                $validated['user_id'] = $request->user()->id;
-            }
-
-            unset($validated['cover_image'], $validated['book_file'], $validated['coverImage'], $validated['bookFile'], $validated['coverImageUrl'], $validated['bookFileUrl']);
-
-            $book = Book::create($validated);
-            $bookArray = $book->toArray();
-            $bookArray['publishedYear'] = $book->published_year;
-            $bookArray['coverImageUrl'] = $book->cover_image_url;
-            $bookArray['bookFileUrl'] = $book->book_file_url;
-            $bookArray['coverImagePath'] = $book->cover_image_path;
-            $bookArray['bookFilePath'] = $book->book_file_path;
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Book uploaded successfully',
-                'data' => $bookArray,
-                'book' => $bookArray,
-            ], 201);
-        } catch (\Exception $e) {
-            return $this->errorResponse('Failed to upload book', $e->getMessage(), 500);
-        }
-    }
 
     public function listBooks(): JsonResponse
     {
