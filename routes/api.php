@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\AdminSettingsController;
 use App\Http\Controllers\Api\AdminUserController;
 use App\Http\Controllers\Api\BookController;
+use App\Http\Controllers\Api\BookInteractionController;
 use App\Http\Controllers\Api\BookWorkflowController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\PostController;
@@ -94,6 +95,19 @@ Route::get('/books/discover', [BookWorkflowController::class, 'discoverBooks'])-
 Route::get('/books/{book}', [BookWorkflowController::class, 'show'])->name('api.books.show');
 Route::get('/books/{book}/read', [BookWorkflowController::class, 'readPdf'])->name('api.books.read');
 Route::get('/books/{book}/cover', [BookWorkflowController::class, 'viewCover'])->name('api.books.cover');
+Route::get('/books/{book}/comments', [BookInteractionController::class, 'listComments'])->name('api.books.comments.index');
+Route::get('/books/{book}/ratings', [BookInteractionController::class, 'ratings'])->name('api.books.ratings.index');
+Route::get('/books/{book}/rating', [BookInteractionController::class, 'ratings']);
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/books/{book}/comments', [BookInteractionController::class, 'addComment'])->name('api.books.comments.store');
+    Route::post('/books/{book}/ratings', [BookInteractionController::class, 'rate'])->name('api.books.ratings.store');
+    Route::post('/books/{book}/rating', [BookInteractionController::class, 'rate']);
+    Route::post('/rating', [BookInteractionController::class, 'rate']);
+});
+
+// Legacy compatibility endpoints
+Route::get('/ratings/{book}', [BookInteractionController::class, 'ratings']);
 
 // Author Book Submission Routes
 Route::middleware(['auth:sanctum', 'role:author'])->prefix('author')->group(function () {

@@ -142,6 +142,13 @@ class Book extends Model
         $item['bookFileUrl'] = $item['book_file_url'];
         $item['coverImagePath'] = $this->cover_image_path;
         $item['bookFilePath'] = $item['book_file_path'];
+        // Extra aliases for frontends expecting poster/cover/book URLs.
+        $item['poster'] = $item['cover_image_url'];
+        $item['cover'] = $item['cover_image_url'];
+        $item['cover_url'] = $item['cover_image_url'];
+        $item['book_url'] = $item['book_file_url'];
+        $item['file_url'] = $item['book_file_url'];
+        $item['pdf_url'] = $item['book_file_url'];
 
         return $item;
     }
