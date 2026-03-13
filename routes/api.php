@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Admin\BookController as AdminBookController;
 use App\Http\Controllers\Api\AdminSettingsController;
 use App\Http\Controllers\Api\AdminUserController;
 use App\Http\Controllers\Api\BookController;
@@ -8,6 +9,7 @@ use App\Http\Controllers\Api\BookInteractionController;
 use App\Http\Controllers\Api\BookWorkflowController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\PostController;
+use App\Http\Controllers\Author\BookController as AuthorBookController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -25,11 +27,7 @@ use Illuminate\Support\Facades\Route;
 // Health check endpoint
 Route::get('/health', function () {
     return response()->json([
-
         'hosting' => 'success',
-
-
-
         'status' => 'healthy',
         'timestamp' => now()->toIso8601String(),
     ]);
@@ -41,11 +39,6 @@ Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
     Route::post('/author_registration', [AuthController::class, 'authorRegister']);
     Route::post('/login', [AuthController::class, 'login']);
-    Route::post('/book', [BookController::class, 'store']);
-    Route::get('/books', [AuthController::class, 'listBooks']);
-    Route::post('/books/import-local', [AuthController::class, 'importBooks']);
-    Route::patch('/books/{id}', [AuthController::class, 'updateBook']);
-    Route::delete('/books/{id}', [AuthController::class, 'deleteBook']);
     Route::post('/book-view', [AuthController::class, 'storeBookView']);
     Route::post('/request-password-reset', [AuthController::class, 'requestPasswordReset']);
     Route::post('/reset-password', [AuthController::class, 'resetPassword']);
@@ -73,6 +66,13 @@ Route::middleware('auth:sanctum')->prefix('auth')->group(function () {
     Route::get('/me', [AuthController::class, 'getCurrentUser']);
     Route::patch('/update-profile', [AuthController::class, 'updateProfile']);
     Route::post('/change-password', [AuthController::class, 'changePassword']);
+    Route::middleware('role:author,admin')->group(function () {
+        Route::get('/books', [AuthorBookController::class, 'index']);
+        Route::get('/books/{book}', [AuthorBookController::class, 'show']);
+        Route::post('/book', [AuthorBookController::class, 'store']);
+        Route::match(['patch', 'post'], '/books/{book}', [AuthorBookController::class, 'update']);
+        Route::delete('/books/{book}', [AuthorBookController::class, 'destroy']);
+    });
 });
 
 // Protected User Routes
@@ -133,6 +133,9 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(functi
     Route::get('/users/{user}', [AdminUserController::class, 'show']);
     Route::match(['put', 'patch', 'post'], '/users/{user}', [AdminUserController::class, 'update']);
     Route::delete('/users/{user}', [AdminUserController::class, 'destroy']);
+    Route::get('/books', [AdminBookController::class, 'index']);
+    Route::post('/books/{book}/approve', [AdminBookController::class, 'approve']);
+    Route::post('/books/{book}/reject', [AdminBookController::class, 'reject']);
     Route::get('/books/pending', [BookWorkflowController::class, 'pendingBooks']);
     Route::patch('/books/{book}/review', [BookWorkflowController::class, 'review']);
 });
