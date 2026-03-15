@@ -57,16 +57,16 @@ class UpdateBookRequest extends FormRequest
         $maxYear = now()->year + 1;
 
         return [
-            'title' => 'sometimes|required|string|max:255',
-            'author' => 'sometimes|nullable|string|max:255',
-            'category' => 'sometimes|nullable|string|max:120',
-            'description' => 'sometimes|nullable|string',
-            'first_publish_year' => 'sometimes|nullable|integer|min:1000|max:'.$maxYear,
-            'cover_image' => 'sometimes|nullable|image|max:5120',
-            'book_file' => 'sometimes|nullable|file|mimes:pdf,epub,doc,docx|max:51200',
-            'book_file_url' => 'sometimes|nullable|string|max:2048',
-            'cover_image_url' => 'sometimes|nullable|string|max:2048',
-            'category_id' => 'sometimes|nullable|integer|exists:categories,id',
+                'title' => 'sometimes|required|string|max:255',
+                'author' => 'sometimes|nullable|string|max:255',
+                'category' => 'sometimes|nullable|string|max:120',
+                'description' => 'sometimes|nullable|string',
+                'first_publish_year' => 'sometimes|nullable|integer|min:1000|max:'.$maxYear,
+                'cover_image' => 'sometimes|nullable|image|max:5120',
+                'book_file' => 'sometimes|nullable|file|mimes:pdf,epub,doc,docx|max:51200',
+                'book_file_url' => 'sometimes|nullable|string|max:2048',
+                'cover_image_url' => 'sometimes|nullable|string|max:2048',
+                'category_id' => 'sometimes|nullable|integer|exists:categories,id',
         ];
     }
 }
