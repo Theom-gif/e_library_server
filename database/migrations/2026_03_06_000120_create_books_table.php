@@ -9,37 +9,25 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('books', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('category_id')->constrained()->restrictOnDelete();
-            $table->foreignId('author_id')->constrained('users')->restrictOnDelete();
-            $table->foreignId('approved_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->id(); // id
+            $table->string('title'); // title
+            $table->string('author'); // author
+            $table->text('description')->nullable(); // description
+            $table->string('category'); // category
+            $table->year('published_year')->nullable(); // published_year
+            $table->foreignId('user_id')->constrained()->onDelete('cascade'); // user_id
+            $table->string('cover_image_path')->nullable(); // cover image path
+            $table->string('book_file_path')->nullable(); // book file path
+            $table->string('cover_image_url')->nullable(); // cover image url
+            $table->string('book_file_url')->nullable(); // book file url
 
-            $table->string('title');
-            $table->string('slug')->unique();
-            $table->text('description')->nullable();
-            $table->string('author_name');
-            $table->string('pdf_path');
-            $table->string('cover_image_path')->nullable();
-
-            $table->unsignedBigInteger('file_size_bytes')->nullable();
-            $table->unsignedInteger('total_pages')->nullable();
-            $table->string('language', 12)->nullable();
-
+            // Optional / extra fields
             $table->enum('status', ['pending', 'approved', 'rejected'])->default('pending');
-            $table->timestamp('approved_at')->nullable();
-            $table->text('rejection_reason')->nullable();
-            $table->timestamp('published_at')->nullable();
+            $table->bigInteger('total_reads')->default(0);
+            $table->decimal('average_rating', 3, 2)->default(0);
 
-            $table->unsignedBigInteger('total_reads')->default(0);
-            $table->decimal('average_rating', 3, 2)->default(0.00);
-
-            $table->timestamps();
-            $table->softDeletes();
-
-            $table->index(['category_id', 'status']);
-            $table->index(['author_id', 'status']);
-            $table->index('published_at');
-            $table->index('title');
+            $table->timestamps(); // created_at, updated_at
+            $table->softDeletes(); // deleted_at
         });
     }
 
