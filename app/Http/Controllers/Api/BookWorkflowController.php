@@ -41,10 +41,14 @@ class BookWorkflowController extends Controller
         $this->applySorting($query, $request, 'published_at');
         $books = $query->paginate($perPage);
 
+        $payload = array_map(fn (Book $book) => $this->transformBook($book), $books->items());
+
         return response()->json([
             'success' => true,
             'message' => 'Approved books retrieved successfully.',
-            'data' => array_map(fn (Book $book) => $this->transformBook($book), $books->items()),
+            'data' => $payload,
+            'books' => $payload,
+            'results' => $payload,
             'meta' => [
                 'current_page' => $books->currentPage(),
                 'last_page' => $books->lastPage(),
@@ -515,8 +519,12 @@ class BookWorkflowController extends Controller
 
     private function transformBook(Book $book): array
     {
-        $publicPdfUrl = $book->pdf_path ? Storage::disk('public')->url($book->pdf_path) : null;
-        $publicCoverUrl = $book->cover_image_path ? Storage::disk('public')->url($book->cover_image_path) : null;
+        $publicPdfUrl = $book->pdf_path
+            ? url(Storage::disk('public')->url($book->pdf_path))
+            : null;
+        $publicCoverUrl = $book->cover_image_path
+            ? url(Storage::disk('public')->url($book->cover_image_path))
+            : null;
 
         return [
             'id' => $book->id,
@@ -539,6 +547,10 @@ class BookWorkflowController extends Controller
             'original_pdf_name' => $book->original_pdf_name,
             'pdf_mime_type' => $book->pdf_mime_type,
             'pdf_url' => $publicPdfUrl,
+            'book_file_url' => $publicPdfUrl,
+            'bookFileUrl' => $publicPdfUrl,
+            'book_url' => $publicPdfUrl,
+            'file_url' => $publicPdfUrl,
             'read_url' => route('api.books.read', ['book' => $book->id]),
             'cover_image_path' => $book->cover_image_path,
             'original_cover_name' => $book->original_cover_name,
@@ -548,6 +560,7 @@ class BookWorkflowController extends Controller
             'cover_api_url' => route('api.books.cover', ['book' => $book->id]),
             'cover_url' => $publicCoverUrl,
             'cover' => $publicCoverUrl,
+            'poster' => $publicCoverUrl,
             'created_at' => $book->created_at,
             'updated_at' => $book->updated_at,
         ];

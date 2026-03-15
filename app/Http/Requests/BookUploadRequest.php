@@ -10,7 +10,7 @@ class BookUploadRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         if (!$this->hasFile('pdf')) {
-            foreach (['manuscript', 'book_pdf', 'book_file', 'pdfFile'] as $pdfAlias) {
+            foreach (['manuscript', 'book_pdf', 'book_file', 'bookFile', 'pdfFile'] as $pdfAlias) {
                 if ($this->hasFile($pdfAlias)) {
                     $this->files->set('pdf', $this->file($pdfAlias));
                     break;
@@ -47,6 +47,17 @@ class BookUploadRequest extends FormRequest
         if (!$this->has('category') && $this->has('genre')) {
             $this->merge([
                 'category' => $this->input('genre'),
+            ]);
+        }
+        if (!$this->has('category_id') && $this->has('categoryId')) {
+            $this->merge([
+                'category_id' => $this->input('categoryId'),
+            ]);
+        }
+
+        if (!$this->has('author_name') && $this->has('authorName')) {
+            $this->merge([
+                'author_name' => $this->input('authorName'),
             ]);
         }
 
