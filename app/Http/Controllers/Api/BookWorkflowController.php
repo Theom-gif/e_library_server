@@ -292,7 +292,7 @@ class BookWorkflowController extends Controller
 
     public function myBooks(Request $request): JsonResponse
     {
-        $status = strtolower((string) $request->query('status', ''));
+        $status = strtolower(trim((string) $request->query('status', 'approved')));
         $search = $this->resolveSearchKeyword($request);
         $categoryId = $this->resolveCategoryFilter($request);
         $perPage = max(1, min((int) $request->query('per_page', 15), 100));
@@ -301,8 +301,13 @@ class BookWorkflowController extends Controller
             ->with(['category:id,name,slug'])
             ->where('author_id', $request->user()->id);
 
-        if (in_array($status, ['pending', 'approved', 'rejected'], true)) {
+        if (in_array($status, ['all', 'any', '*'], true)) {
+            // Return all statuses for the author when explicitly requested.
+        } elseif (in_array($status, ['pending', 'approved', 'rejected'], true)) {
             $query->where('status', $status);
+        } else {
+            // Default "My Books" view shows only approved titles.
+            $query->where('status', 'approved');
         }
 
         if ($search !== '') {
