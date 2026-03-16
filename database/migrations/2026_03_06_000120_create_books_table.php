@@ -9,25 +9,43 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('books', function (Blueprint $table) {
-            $table->id(); // id
-            $table->string('title'); // title
-            $table->string('author'); // author
-            $table->text('description')->nullable(); // description
-            $table->string('category'); // category
-            $table->year('published_year')->nullable(); // published_year
-            $table->foreignId('user_id')->constrained()->onDelete('cascade'); // user_id
-            $table->string('cover_image_path')->nullable(); // cover image path
-            $table->string('book_file_path')->nullable(); // book file path
-            $table->string('cover_image_url')->nullable(); // cover image url
-            $table->string('book_file_url')->nullable(); // book file url
+            $table->id();
 
-            // Optional / extra fields
-            $table->enum('status', ['pending', 'approved', 'rejected'])->default('pending');
+            $table->foreignId('category_id')->nullable()->constrained()->nullOnDelete();
+           // $table->foreignId('author_id')->nullable()->constrained()->nullOnDelete();
+            $table->foreignId('user_id')->nullable()->constrained()->cascadeOnDelete();
+            $table->foreignId('approved_by')->nullable()->constrained('users')->nullOnDelete();
+
+            $table->string('title');
+            $table->string('slug')->unique();
+
+            $table->text('description')->nullable();
+            $table->string('author_name')->nullable();
+
+            $table->string('pdf_path')->nullable();
+            $table->string('original_pdf_name')->nullable();
+            $table->string('pdf_mime_type')->nullable();
+
+            $table->string('cover_image_path')->nullable();
+            $table->string('original_cover_name')->nullable();
+            $table->string('cover_mime_type')->nullable();
+
+            $table->bigInteger('file_size_bytes')->nullable();
+            $table->integer('total_pages')->nullable();
+
+            $table->string('language')->nullable();
+
+            $table->enum('status', ['pending','approved','rejected'])->default('pending');
+
+            $table->timestamp('approved_at')->nullable();
+            $table->text('rejection_reason')->nullable();
+            $table->timestamp('published_at')->nullable();
+
             $table->bigInteger('total_reads')->default(0);
-            $table->decimal('average_rating', 3, 2)->default(0);
+            $table->decimal('average_rating',3,2)->default(0);
 
-            $table->timestamps(); // created_at, updated_at
-            $table->softDeletes(); // deleted_at
+            $table->softDeletes();
+            $table->timestamps();
         });
     }
 
