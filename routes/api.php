@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Admin\BookController as AdminBookController;
 use App\Http\Controllers\Api\AdminSettingsController;
+use App\Http\Controllers\Api\AdminDashboardController;
 use App\Http\Controllers\Api\AdminUserController;
 use App\Http\Controllers\Api\BookController;
 use App\Http\Controllers\Api\BookInteractionController;
@@ -124,6 +125,7 @@ Route::middleware(['auth:sanctum', 'role:author'])->prefix('author')->group(func
 
 // Admin Book Moderation Routes
 Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(function () {
+    Route::get('/dashboard', [AdminDashboardController::class, 'index']);
     Route::get('/settings', [AdminSettingsController::class, 'show']);
     Route::match(['put', 'patch', 'post'], '/settings', [AdminSettingsController::class, 'changePassword']);
     Route::match(['put', 'patch', 'post'], '/settings/change-password', [AdminSettingsController::class, 'changePassword']);
