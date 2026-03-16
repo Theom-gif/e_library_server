@@ -136,6 +136,7 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(functi
     Route::match(['put', 'patch', 'post'], '/users/{user}', [AdminUserController::class, 'update']);
     Route::delete('/users/{user}', [AdminUserController::class, 'destroy']);
     Route::get('/books', [AdminBookController::class, 'index']);
+    Route::get('/books/approved', [AdminBookController::class, 'approved']);
     Route::post('/books/{book}/approve', [AdminBookController::class, 'approve']);
     Route::post('/books/{book}/reject', [AdminBookController::class, 'reject']);
     Route::get('/books/pending', [BookWorkflowController::class, 'pendingBooks']);

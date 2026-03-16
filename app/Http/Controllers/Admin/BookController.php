@@ -44,6 +44,13 @@ class BookController extends Controller
         ]);
     }
 
+    public function approved(Request $request): JsonResponse
+    {
+        $request->merge(['status' => 'approved']);
+
+        return $this->index($request);
+    }
+
     public function approve(ApproveRejectBookRequest $request, Book $book): JsonResponse
     {
         $book->update(Book::compatibleAttributes([
