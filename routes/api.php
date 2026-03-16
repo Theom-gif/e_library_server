@@ -126,6 +126,7 @@ Route::middleware(['auth:sanctum', 'role:author'])->prefix('author')->group(func
 // Admin Book Moderation Routes
 Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(function () {
     Route::get('/dashboard', [AdminDashboardController::class, 'index']);
+    Route::get('/dashboard/activity', [AdminDashboardController::class, 'activity']);
     Route::get('/settings', [AdminSettingsController::class, 'show']);
     Route::match(['put', 'patch', 'post'], '/settings', [AdminSettingsController::class, 'changePassword']);
     Route::match(['put', 'patch', 'post'], '/settings/change-password', [AdminSettingsController::class, 'changePassword']);

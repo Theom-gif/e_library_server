@@ -10,6 +10,13 @@ use Illuminate\Http\Request;
 
 class AdminDashboardController extends Controller
 {
+    public function activity(Request $request): JsonResponse
+    {
+        return response()->json([
+            'activity' => [],
+        ]);
+    }
+
     public function index(Request $request): JsonResponse
     {
         $stats = [
