@@ -14,5 +14,11 @@ class Category extends Model
         'slug',
         'description',
         'is_active',
+        'icon',
     ];
+
+    public function books()
+    {
+        return $this->hasMany(Book::class);
+    }
 }
