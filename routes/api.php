@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\BookInteractionController;
 use App\Http\Controllers\Api\BookWorkflowController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\PostController;
+use App\Http\Controllers\Api\Reader\FavoriteController as ReaderFavoriteController;
 use App\Http\Controllers\Author\BookController as AuthorBookController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -121,6 +122,13 @@ Route::middleware(['auth:sanctum', 'role:author'])->prefix('author')->group(func
     Route::get('/books/{book}', [BookWorkflowController::class, 'show']);
     Route::get('/books/{book}/read', [BookWorkflowController::class, 'readPdf']);
     Route::get('/books/{book}/cover', [BookWorkflowController::class, 'viewCover']);
+});
+
+// Favorites API (reader scoped)
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/favorites', [ReaderFavoriteController::class, 'index']);
+    Route::post('/favorites', [ReaderFavoriteController::class, 'store']);
+    Route::delete('/favorites/{bookId}', [ReaderFavoriteController::class, 'destroy']);
 });
 
 // Admin Book Moderation Routes
