@@ -42,7 +42,7 @@ Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
     Route::post('/author_registration', [AuthController::class, 'authorRegister']);
     Route::post('/login', [AuthController::class, 'login']);
-    Route::post('/book-view', [AuthController::class, 'storeBookView']);
+    Route::post('/book-view', [BookController::class, 'storeBookView']);
     Route::post('/request-password-reset', [AuthController::class, 'requestPasswordReset']);
     Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 });
@@ -51,11 +51,11 @@ Route::get('/category', [CategoryController::class, 'index']);
 Route::get('/categories/all', [CategoryController::class, 'index']);
 
 // Compatibility Book Routes (no /auth prefix) for frontend clients
-Route::get('/books', [AuthController::class, 'listBooks']);
+Route::get('/books', [BookWorkflowController::class, 'approvedBooks']);
 Route::post('/books', [BookController::class, 'store']);
-Route::patch('/books/{id}', [AuthController::class, 'updateBook']);
-Route::delete('/books/{id}', [AuthController::class, 'deleteBook']);
-Route::get('/book', [AuthController::class, 'listBooks']);
+Route::patch('/books/{id}', [BookController::class, 'updateBook']);
+Route::delete('/books/{id}', [BookController::class, 'deleteBook']);
+Route::get('/book', [BookWorkflowController::class, 'approvedBooks']);
 Route::post('/book', [BookController::class, 'store']);
 Route::post('/author/upload', [BookController::class, 'store']);
 Route::post('/author/books/upload', [BookController::class, 'store']);
@@ -77,12 +77,22 @@ Route::middleware('auth:sanctum')->prefix('auth')->group(function () {
         Route::delete('/books/{book}', [AuthorBookController::class, 'destroy']);
     });
 });
+// Admin routes (require admin role)
+Route::middleware(['auth:sanctum', 'check.token.expiry'])->group(function () {
+
+    Route::get('/user', [AuthController::class, 'getCurrentUser']);
+    Route::post('/logout', [AuthController::class, 'logout']);
+
+});
 
 // Protected User Routes
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
-
+// Example protected route
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/user', [AuthController::class, 'getCurrentUser']);
+});
 // Example API routes for REST API
 Route::apiResource('posts', PostController::class);
 
@@ -93,6 +103,7 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 // Public approved books (read + cover preview)
 Route::get('/books', [BookWorkflowController::class, 'approvedBooks'])->name('api.books.index');
+Route::post('/books/{book}/download', [BookWorkflowController::class, 'resolveDownload'])->name('api.books.download.resolve');
 Route::get('/books/discover', [BookWorkflowController::class, 'discoverBooks'])->name('api.books.discover');
 Route::get('/books/{book}', [BookWorkflowController::class, 'show'])->name('api.books.show');
 Route::get('/books/{book}/read', [BookWorkflowController::class, 'readPdf'])->name('api.books.read');

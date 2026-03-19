@@ -256,13 +256,64 @@ class BookWorkflowController extends Controller
             ], 404);
         }
 
-        return response()->file(
-            Storage::disk('public')->path($book->pdf_path),
-            [
-                'Content-Type' => 'application/pdf',
-                'Content-Disposition' => 'inline; filename="'.basename($book->pdf_path).'"',
-            ]
-        );
+        $path = Storage::disk('public')->path($book->pdf_path);
+        $mimeType = $book->pdf_mime_type ?: (Storage::disk('public')->mimeType($book->pdf_path) ?: 'application/pdf');
+        $filename = $book->original_pdf_name ?: basename($book->pdf_path);
+
+        return response()->file($path, [
+            'Content-Type' => $mimeType,
+            'Content-Length' => (string) filesize($path),
+            'Content-Disposition' => 'inline; filename="'.$filename.'"',
+            'Access-Control-Expose-Headers' => 'Content-Length, Content-Disposition, Content-Type',
+        ]);
+    }
+
+    public function resolveDownload(Request $request, Book $book): JsonResponse
+    {
+        if ($book->status !== 'approved') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Book not found.',
+            ], 404);
+        }
+
+        $localPath = $this->resolveLocalBookPath($book);
+        $absoluteUrl = $this->resolveAbsoluteBookUrl($book);
+
+        if ($localPath !== null && Storage::disk('public')->exists($localPath)) {
+            $resolvedMimeType = $book->pdf_mime_type ?: (Storage::disk('public')->mimeType($localPath) ?: 'application/pdf');
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'download_url' => route('api.books.read', ['book' => $book->id], false),
+                    'stream_url' => route('api.books.read', ['book' => $book->id], false),
+                    'url' => route('api.books.read', ['book' => $book->id], false),
+                    'mime_type' => $resolvedMimeType,
+                    'file_name' => $book->original_pdf_name ?: basename($localPath),
+                    'size_bytes' => $book->file_size_bytes ?: Storage::disk('public')->size($localPath),
+                ],
+            ]);
+        }
+
+        if ($absoluteUrl !== null) {
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'download_url' => $absoluteUrl,
+                    'stream_url' => $absoluteUrl,
+                    'url' => $absoluteUrl,
+                    'mime_type' => $book->pdf_mime_type ?: 'application/pdf',
+                    'file_name' => $book->original_pdf_name ?: basename(parse_url($absoluteUrl, PHP_URL_PATH) ?: 'book.pdf'),
+                    'size_bytes' => $book->file_size_bytes,
+                ],
+            ]);
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Book file not found.',
+        ], 404);
     }
 
     public function viewCover(Request $request, Book $book): BinaryFileResponse|JsonResponse
@@ -692,5 +743,29 @@ class BookWorkflowController extends Controller
         }
 
         return (int) $user->id === (int) $book->author_id;
+    }
+
+    private function resolveLocalBookPath(Book $book): ?string
+    {
+        foreach ([$book->pdf_path, $book->book_file_path] as $candidate) {
+            $value = trim((string) $candidate);
+            if ($value !== '' && !preg_match('/^(https?:|data:)/i', $value)) {
+                return $value;
+            }
+        }
+
+        return null;
+    }
+
+    private function resolveAbsoluteBookUrl(Book $book): ?string
+    {
+        foreach ([$book->book_file_url, $book->pdf_path, $book->book_file_path] as $candidate) {
+            $value = trim((string) $candidate);
+            if ($value !== '' && preg_match('/^https?:/i', $value)) {
+                return $value;
+            }
+        }
+
+        return null;
     }
 }

@@ -23,6 +23,7 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         $middleware->alias([
+            'check.token.expiry' => \App\Http\Middleware\CheckTokenExpiry::class,
             'role' => \App\Http\Middleware\EnsureRole::class,
         ]);
     })
