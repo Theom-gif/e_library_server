@@ -49,6 +49,8 @@ Route::prefix('auth')->group(function () {
 Route::apiResource('categories', CategoryController::class);
 Route::get('/category', [CategoryController::class, 'index']);
 Route::get('/categories/all', [CategoryController::class, 'index']);
+Route::get('/users/books', [BookWorkflowController::class, 'userBooks']);
+Route::get('/authors/books', [BookWorkflowController::class, 'authorBooks']);
 
 // Compatibility Book Routes (no /auth prefix) for frontend clients
 Route::post('/books', [BookController::class, 'store']);

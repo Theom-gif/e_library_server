@@ -20,6 +20,73 @@ use Illuminate\Validation\ValidationException;
 
 class BookWorkflowController extends Controller
 {
+    public function userBooks(Request $request): JsonResponse
+    {
+        $perPage = max(1, min((int) $request->query('per_page', 15), 100));
+
+        $books = Book::query()
+            ->where('status', 'approved')
+            ->latest('id')
+            ->paginate($perPage);
+
+        if ($books->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No approved books found.',
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => array_map(fn (Book $book) => $this->transformSimpleBook($book), $books->items()),
+            'meta' => [
+                'current_page' => $books->currentPage(),
+                'last_page' => $books->lastPage(),
+                'per_page' => $books->perPage(),
+                'total' => $books->total(),
+            ],
+        ]);
+    }
+
+    public function authorBooks(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'authorId' => 'required_without:author_id|integer|exists:users,id',
+            'author_id' => 'required_without:authorId|integer|exists:users,id',
+            'per_page' => 'nullable|integer|min:1|max:100',
+        ]);
+
+        $authorId = (int) ($validated['authorId'] ?? $validated['author_id']);
+        $perPage = max(1, min((int) ($validated['per_page'] ?? 15), 100));
+
+        $books = Book::query()
+            ->where(function (Builder $query) use ($authorId) {
+                $query->where('author_id', $authorId)
+                    ->orWhere('user_id', $authorId);
+            })
+            ->latest('id')
+            ->paginate($perPage);
+
+        if ($books->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No books found for this author.',
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => array_map(fn (Book $book) => $this->transformSimpleBook($book), $books->items()),
+            'meta' => [
+                'authorId' => $authorId,
+                'current_page' => $books->currentPage(),
+                'last_page' => $books->lastPage(),
+                'per_page' => $books->perPage(),
+                'total' => $books->total(),
+            ],
+        ]);
+    }
+
     public function approvedBooks(Request $request): JsonResponse
     {
         $perPage = max(1, min((int) $request->query('per_page', 15), 100));
@@ -767,5 +834,17 @@ class BookWorkflowController extends Controller
         }
 
         return null;
+    }
+
+    private function transformSimpleBook(Book $book): array
+    {
+        return [
+            'id' => $book->id,
+            'title' => $book->title,
+            'authorId' => $book->author_id ?? $book->user_id,
+            'status' => (string) $book->status,
+            'created_at' => $book->created_at,
+            'updated_at' => $book->updated_at,
+        ];
     }
 }
