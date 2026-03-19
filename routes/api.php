@@ -51,7 +51,6 @@ Route::get('/category', [CategoryController::class, 'index']);
 Route::get('/categories/all', [CategoryController::class, 'index']);
 
 // Compatibility Book Routes (no /auth prefix) for frontend clients
-Route::get('/books', [BookWorkflowController::class, 'approvedBooks']);
 Route::post('/books', [BookController::class, 'store']);
 Route::patch('/books/{id}', [BookController::class, 'updateBook']);
 Route::delete('/books/{id}', [BookController::class, 'deleteBook']);
