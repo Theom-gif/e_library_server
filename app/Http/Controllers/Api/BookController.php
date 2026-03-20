@@ -227,6 +227,8 @@ class BookController extends Controller
                     Storage::disk('public')->delete($book->cover_image_path);
                 }
                 $validated['cover_image_path'] = $coverFile->store('books/covers', 'public');
+                $validated['original_cover_name'] = $coverFile->getClientOriginalName();
+                $validated['cover_mime_type'] = $coverFile->getClientMimeType();
             }
 
             if ($bookFile) {
@@ -251,6 +253,9 @@ class BookController extends Controller
 
             if (!$coverFile && is_string($coverImageUrl) && $coverImageUrl !== '') {
                 $validated['cover_image_url'] = $coverImageUrl;
+                $validated['cover_image_path'] = null;
+                $validated['original_cover_name'] = null;
+                $validated['cover_mime_type'] = null;
             }
 
             if (!$bookFile && is_string($bookFileUrl) && $bookFileUrl !== '') {

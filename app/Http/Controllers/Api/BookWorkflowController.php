@@ -395,20 +395,36 @@ class BookWorkflowController extends Controller
             ], 404);
         }
 
-        if (!$book->cover_image_path || !Storage::disk('public')->exists($book->cover_image_path)) {
+        if ($book->cover_image_path && Storage::disk('public')->exists($book->cover_image_path)) {
+            return response()->file(
+                Storage::disk('public')->path($book->cover_image_path),
+                [
+                    'Content-Type' => Storage::disk('public')->mimeType($book->cover_image_path) ?: 'application/octet-stream',
+                    'Content-Disposition' => 'inline; filename="'.basename($book->cover_image_path).'"',
+                ]
+            );
+        }
+
+        if (is_string($book->cover_image_url) && preg_match('/^https?:/i', $book->cover_image_url)) {
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'cover_url' => $book->cover_image_url,
+                ],
+            ]);
+        }
+
+        if (is_string($book->cover_image_url) && preg_match('/^data:/i', $book->cover_image_url)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Cover image not found.',
+                'message' => 'Embedded cover images are not supported by this endpoint.',
             ], 404);
         }
 
-        return response()->file(
-            Storage::disk('public')->path($book->cover_image_path),
-            [
-                'Content-Type' => Storage::disk('public')->mimeType($book->cover_image_path) ?: 'application/octet-stream',
-                'Content-Disposition' => 'inline; filename="'.basename($book->cover_image_path).'"',
-            ]
-        );
+        return response()->json([
+            'success' => false,
+            'message' => 'Cover image not found.',
+        ], 404);
     }
 
     public function myBooks(Request $request): JsonResponse
