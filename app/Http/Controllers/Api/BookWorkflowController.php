@@ -262,6 +262,9 @@ class BookWorkflowController extends Controller
                 'original_pdf_name' => $pdfFile->getClientOriginalName(),
                 'pdf_mime_type' => $pdfFile->getClientMimeType(),
                 'cover_image_path' => $coverImagePath,
+                'cover_image_url' => $coverImagePath
+                    ? url(Storage::disk('public')->url($coverImagePath))
+                    : null,
                 'original_cover_name' => $coverFile?->getClientOriginalName(),
                 'cover_mime_type' => $coverFile?->getClientMimeType(),
                 'file_size_bytes' => $pdfFile->getSize(),
@@ -642,12 +645,8 @@ class BookWorkflowController extends Controller
 
     private function transformBook(Book $book): array
     {
-        $publicPdfUrl = $book->pdf_path
-            ? url(Storage::disk('public')->url($book->pdf_path))
-            : null;
-        $publicCoverUrl = $book->cover_image_path
-            ? url(Storage::disk('public')->url($book->cover_image_path))
-            : null;
+        $publicPdfUrl = $this->resolveStoredAssetUrl($book->pdf_path) ?: $book->book_file_url;
+        $publicCoverUrl = $this->resolveStoredAssetUrl($book->cover_image_path) ?: $book->cover_image_url;
 
         return [
             'id' => $book->id,
@@ -687,6 +686,20 @@ class BookWorkflowController extends Controller
             'created_at' => $book->created_at,
             'updated_at' => $book->updated_at,
         ];
+    }
+
+    private function resolveStoredAssetUrl(?string $path): ?string
+    {
+        $value = trim((string) $path);
+        if ($value === '') {
+            return null;
+        }
+
+        if (preg_match('/^(https?:|data:)/i', $value)) {
+            return $value;
+        }
+
+        return url(Storage::disk('public')->url($value));
     }
 
     private function resolveSearchKeyword(Request $request): string
