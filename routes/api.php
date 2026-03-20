@@ -93,6 +93,9 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     Route::prefix('me')->group(function () {
+        Route::get('/', [AuthController::class, 'getCurrentUser']);
+        Route::get('/profile', [AuthController::class, 'getCurrentUser']);
+        Route::match(['patch', 'put'], '/profile', [AuthController::class, 'updateProfile']);
         Route::get('/reading-activity', [ReadingSessionController::class, 'activity']);
     });
 

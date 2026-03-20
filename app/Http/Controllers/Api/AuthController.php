@@ -142,6 +142,14 @@ class AuthController extends Controller
     // --------------------------------------
     public function getCurrentUser(Request $request): JsonResponse
     {
+        if ($request->is('api/me') || $request->is('api/me/profile')) {
+            return $this->successResponse(
+                $this->buildProfilePayload($request->user()),
+                'Profile retrieved successfully',
+                200
+            );
+        }
+
         return $this->successResponse(
             $request->user(),
             'User retrieved successfully',
@@ -161,6 +169,14 @@ class AuthController extends Controller
             'facebook_url',
             'avatar',
         ]));
+
+        if ($request->is('api/me/profile')) {
+            return $this->successResponse(
+                $this->buildProfilePayload($request->user()->fresh()),
+                'Profile updated successfully',
+                200
+            );
+        }
 
         return $this->successResponse(
             $request->user(),
@@ -202,6 +218,65 @@ class AuthController extends Controller
             'message' => $message,
             'errors'  => $errors,
         ], $code);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function buildProfilePayload(User $user): array
+    {
+        $favoritesCount = DB::table('favorites')
+            ->where('user_id', $user->id)
+            ->count();
+
+        $downloadsCount = DB::table('offline_downloads')
+            ->where('user_id', $user->id)
+            ->count();
+
+        $booksReadCount = DB::table('reading_sessions')
+            ->where('user_id', $user->id)
+            ->where('duration_seconds', '>', 0)
+            ->distinct('book_id')
+            ->count('book_id');
+
+        $totalReadingSeconds = (int) DB::table('reading_activity_daily')
+            ->where('user_id', $user->id)
+            ->sum('seconds_read');
+
+        $readingDaysCount = DB::table('reading_activity_daily')
+            ->where('user_id', $user->id)
+            ->where('seconds_read', '>', 0)
+            ->count();
+
+        $userData = [
+            'id' => $user->id,
+            'role_id' => $user->role_id,
+            'firstname' => $user->firstname,
+            'lastname' => $user->lastname,
+            'first_name' => $user->firstname,
+            'last_name' => $user->lastname,
+            'full_name' => trim(($user->firstname ?? '').' '.($user->lastname ?? '')),
+            'email' => $user->email,
+            'bio' => $user->bio,
+            'facebook_url' => $user->facebook_url,
+            'avatar' => $user->avatar,
+            'avatar_url' => $user->avatar,
+            'created_at' => $user->created_at?->toIso8601String(),
+            'updated_at' => $user->updated_at?->toIso8601String(),
+            'member_since' => $user->created_at?->toDateString(),
+        ];
+
+        return [
+            'user' => $userData,
+            'stats' => [
+                'favorites_count' => (int) $favoritesCount,
+                'downloads_count' => (int) $downloadsCount,
+                'books_read_count' => (int) $booksReadCount,
+                'reading_days_count' => (int) $readingDaysCount,
+                'total_reading_seconds' => $totalReadingSeconds,
+                'total_reading_minutes' => (int) round($totalReadingSeconds / 60),
+            ],
+        ];
     }
 
 }
