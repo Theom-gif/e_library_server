@@ -79,7 +79,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/books/{book}/comments', [BookInteractionController::class, 'addComment'])->name('api.books.comments.store');
     Route::post('/books/{book}/ratings', [BookInteractionController::class, 'rate'])->name('api.books.ratings.store');
     Route::post('/books/{book}/rating', [BookInteractionController::class, 'rate']);
-    Route::post('/rating', [BookInteractionController::class, 'rate']);
 
     Route::get('/favorites', [ReaderFavoriteController::class, 'index']);
     Route::post('/favorites', [ReaderFavoriteController::class, 'store']);
