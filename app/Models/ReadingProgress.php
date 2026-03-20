@@ -12,15 +12,23 @@ class ReadingProgress extends Model
     protected $fillable = [
         'user_id',
         'book_id',
+        'last_page',
         'progress_percent',
-        'current_page',
-        'is_completed',
+        'total_seconds',
+        'total_sessions',
+        'total_days',
+        'last_read_at',
+        'completed_at',
     ];
 
     protected $casts = [
         'progress_percent' => 'float',
-        'current_page' => 'integer',
-        'is_completed' => 'boolean',
+        'last_page' => 'integer',
+        'total_seconds' => 'integer',
+        'total_sessions' => 'integer',
+        'total_days' => 'integer',
+        'last_read_at' => 'datetime',
+        'completed_at' => 'datetime',
     ];
 
     public function user()

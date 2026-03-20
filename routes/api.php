@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\BookWorkflowController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\PostController;
 use App\Http\Controllers\Api\Reader\FavoriteController as ReaderFavoriteController;
+use App\Http\Controllers\Api\Reader\ReadingSessionController;
 use App\Http\Controllers\Author\BookController as AuthorBookController;
 use Illuminate\Support\Facades\Route;
 
@@ -80,6 +81,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/favorites', [ReaderFavoriteController::class, 'index']);
     Route::post('/favorites', [ReaderFavoriteController::class, 'store']);
     Route::delete('/favorites/{bookId}', [ReaderFavoriteController::class, 'destroy']);
+
+    Route::prefix('reading-sessions')->group(function () {
+        Route::post('/start', [ReadingSessionController::class, 'start']);
+        Route::post('/{sessionId}/heartbeat', [ReadingSessionController::class, 'heartbeat']);
+        Route::post('/{sessionId}/finish', [ReadingSessionController::class, 'finish']);
+    });
+
+    Route::prefix('me')->group(function () {
+        Route::get('/reading-activity', [ReadingSessionController::class, 'activity']);
+    });
 
     Route::prefix('auth')->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);
