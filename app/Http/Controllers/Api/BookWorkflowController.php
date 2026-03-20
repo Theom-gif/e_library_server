@@ -7,6 +7,7 @@ use App\Http\Requests\BookReviewRequest;
 use App\Http\Requests\BookUploadRequest;
 use App\Models\Book;
 use App\Models\Category;
+use App\Models\OfflineDownload;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -352,31 +353,47 @@ class BookWorkflowController extends Controller
 
         if ($localPath !== null && Storage::disk('public')->exists($localPath)) {
             $resolvedMimeType = $book->pdf_mime_type ?: (Storage::disk('public')->mimeType($localPath) ?: 'application/pdf');
+            $relativeReadUrl = route('api.books.read', ['book' => $book->id], false);
+            $payload = [
+                'download_url' => $relativeReadUrl,
+                'stream_url' => $relativeReadUrl,
+                'url' => $relativeReadUrl,
+                'mime_type' => $resolvedMimeType,
+                'file_name' => $book->original_pdf_name ?: basename($localPath),
+                'size_bytes' => $book->file_size_bytes ?: Storage::disk('public')->size($localPath),
+            ];
+
+            $this->recordDownload($request, $book);
 
             return response()->json([
                 'success' => true,
-                'data' => [
-                    'download_url' => route('api.books.read', ['book' => $book->id], false),
-                    'stream_url' => route('api.books.read', ['book' => $book->id], false),
-                    'url' => route('api.books.read', ['book' => $book->id], false),
-                    'mime_type' => $resolvedMimeType,
-                    'file_name' => $book->original_pdf_name ?: basename($localPath),
-                    'size_bytes' => $book->file_size_bytes ?: Storage::disk('public')->size($localPath),
-                ],
+                'message' => 'Download link generated successfully.',
+                'download_url' => $payload['download_url'],
+                'stream_url' => $payload['stream_url'],
+                'url' => $payload['url'],
+                'data' => $payload,
             ]);
         }
 
         if ($absoluteUrl !== null) {
+            $payload = [
+                'download_url' => $absoluteUrl,
+                'stream_url' => $absoluteUrl,
+                'url' => $absoluteUrl,
+                'mime_type' => $book->pdf_mime_type ?: 'application/pdf',
+                'file_name' => $book->original_pdf_name ?: basename(parse_url($absoluteUrl, PHP_URL_PATH) ?: 'book.pdf'),
+                'size_bytes' => $book->file_size_bytes,
+            ];
+
+            $this->recordDownload($request, $book);
+
             return response()->json([
                 'success' => true,
-                'data' => [
-                    'download_url' => $absoluteUrl,
-                    'stream_url' => $absoluteUrl,
-                    'url' => $absoluteUrl,
-                    'mime_type' => $book->pdf_mime_type ?: 'application/pdf',
-                    'file_name' => $book->original_pdf_name ?: basename(parse_url($absoluteUrl, PHP_URL_PATH) ?: 'book.pdf'),
-                    'size_bytes' => $book->file_size_bytes,
-                ],
+                'message' => 'Download link generated successfully.',
+                'download_url' => $payload['download_url'],
+                'stream_url' => $payload['stream_url'],
+                'url' => $payload['url'],
+                'data' => $payload,
             ]);
         }
 
@@ -851,6 +868,26 @@ class BookWorkflowController extends Controller
         }
 
         return null;
+    }
+
+    private function recordDownload(Request $request, Book $book): void
+    {
+        $user = $request->user();
+        if (!$user) {
+            return;
+        }
+
+        OfflineDownload::query()->updateOrCreate(
+            [
+                'book_id' => $book->id,
+                'user_id' => $user->id,
+            ],
+            [
+                'downloaded_at' => now(),
+                'last_synced_at' => now(),
+                'sync_status' => 'synced',
+            ]
+        );
     }
 
     private function resolveAbsoluteBookUrl(Book $book): ?string

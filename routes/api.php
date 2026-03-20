@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\BookInteractionController;
 use App\Http\Controllers\Api\BookWorkflowController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\PostController;
+use App\Http\Controllers\Api\Reader\DownloadController as ReaderDownloadController;
 use App\Http\Controllers\Api\Reader\FavoriteController as ReaderFavoriteController;
 use App\Http\Controllers\Api\Reader\ReadingSessionController;
 use App\Http\Controllers\Author\BookController as AuthorBookController;
@@ -83,6 +84,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/favorites', [ReaderFavoriteController::class, 'index']);
     Route::post('/favorites', [ReaderFavoriteController::class, 'store']);
     Route::delete('/favorites/{bookId}', [ReaderFavoriteController::class, 'destroy']);
+    Route::get('/downloads', [ReaderDownloadController::class, 'index']);
+    Route::post('/books/{book}/downloads', [ReaderDownloadController::class, 'store']);
 
     Route::prefix('reading-sessions')->group(function () {
         Route::post('/start', [ReadingSessionController::class, 'start']);
