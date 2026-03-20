@@ -128,6 +128,8 @@ class Book extends Model
 
         $coverUrl = $this->resolveAssetUrl($this->cover_image_path) ?? ($item['cover_image_url'] ?? null);
         $bookUrl = $this->resolveAssetUrl($this->pdf_path ?? null) ?? ($item['book_file_url'] ?? null);
+        $coverApiUrl = $this->id ? route('api.books.cover', ['book' => $this->id]) : null;
+        $readApiUrl = $this->id ? route('api.books.read', ['book' => $this->id]) : null;
 
         // Keep legacy keys for existing frontend pages while using new schema fields.
         $item['author'] = $item['author'] ?? $this->author_name;
@@ -146,9 +148,12 @@ class Book extends Model
         $item['poster'] = $item['cover_image_url'];
         $item['cover'] = $item['cover_image_url'];
         $item['cover_url'] = $item['cover_image_url'];
+        $item['cover_api_url'] = $coverApiUrl;
+        $item['cover_view_url'] = $coverUrl;
         $item['book_url'] = $item['book_file_url'];
         $item['file_url'] = $item['book_file_url'];
         $item['pdf_url'] = $item['book_file_url'];
+        $item['read_url'] = $readApiUrl;
 
         return $item;
     }
