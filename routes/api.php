@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\BookController as AdminBookController;
 use App\Http\Controllers\Api\AdminCategoryController;
 use App\Http\Controllers\Api\AdminDashboardController;
+use App\Http\Controllers\Api\AdminSystemMonitorController;
 use App\Http\Controllers\Api\AdminReaderLeaderboardController;
 use App\Http\Controllers\Api\AdminSettingsController;
 use App\Http\Controllers\Api\AdminUserController;
@@ -126,6 +127,11 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(functi
     Route::get('/dashboard', [AdminDashboardController::class, 'index']);
     Route::get('/dashboard/activity', [AdminDashboardController::class, 'activity']);
     Route::get('/leaderboard/readers', [AdminReaderLeaderboardController::class, 'index']);
+    Route::get('/monitor/summary', [AdminSystemMonitorController::class, 'summary']);
+    Route::get('/monitor/activity', [AdminSystemMonitorController::class, 'activity']);
+    Route::get('/monitor/health', [AdminSystemMonitorController::class, 'health']);
+    Route::get('/monitor/top-books', [AdminSystemMonitorController::class, 'topBooks']);
+    Route::get('/monitor/dashboard', [AdminSystemMonitorController::class, 'dashboard']);
 
     Route::get('/settings', [AdminSettingsController::class, 'show']);
     Route::match(['put', 'patch', 'post'], '/settings', [AdminSettingsController::class, 'changePassword']);
