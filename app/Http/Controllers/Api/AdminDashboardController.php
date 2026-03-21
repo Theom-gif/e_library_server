@@ -5,11 +5,17 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Book;
 use App\Models\User;
+use App\Services\AdminReaderLeaderboardService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class AdminDashboardController extends Controller
 {
+    public function __construct(
+        private readonly AdminReaderLeaderboardService $leaderboardService
+    ) {
+    }
+
     public function activity(Request $request): JsonResponse
     {
         return response()->json([
@@ -19,6 +25,10 @@ class AdminDashboardController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        $topReadersRange = (string) $request->query('top_readers_range', 'all');
+        $topReadersLimit = max(1, min((int) $request->query('top_readers_limit', 10), 100));
+        $topReadersPayload = $this->leaderboardService->getLeaderboard($topReadersRange, $topReadersLimit);
+
         $stats = [
             'totalUsers' => User::count(),
             'totalBooks' => Book::count(),
@@ -35,6 +45,8 @@ class AdminDashboardController extends Controller
                 'authors' => 0,
             ],
             'activity' => [],
+            'topReaders' => $topReadersPayload['data'],
+            'topReadersMeta' => $topReadersPayload['meta'],
             'health' => [
                 'uptimePercent' => 100,
                 'apiServer' => ['status' => 'online', 'latencyMs' => 0],
