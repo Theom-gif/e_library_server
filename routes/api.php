@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\AdminSystemMonitorController;
 use App\Http\Controllers\Api\AdminReaderLeaderboardController;
 use App\Http\Controllers\Api\AdminSettingsController;
 use App\Http\Controllers\Api\AdminUserController;
+use App\Http\Controllers\Api\AuthorDashboardController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BookController;
 use App\Http\Controllers\Api\BookInteractionController;
@@ -116,6 +117,13 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 
 Route::middleware(['auth:sanctum', 'role:author'])->prefix('author')->group(function () {
+    Route::get('/dashboard', [AuthorDashboardController::class, 'index']);
+    Route::get('/dashboard/stats', [AuthorDashboardController::class, 'stats']);
+    Route::get('/dashboard/performance', [AuthorDashboardController::class, 'performance']);
+    Route::get('/dashboard/top-books', [AuthorDashboardController::class, 'topBooks']);
+    Route::get('/dashboard/feedback', [AuthorDashboardController::class, 'feedback']);
+    Route::get('/dashboard/demographics', [AuthorDashboardController::class, 'demographics']);
+
     Route::get('/research', [BookWorkflowController::class, 'authorResearch']);
     Route::get('/search', [BookWorkflowController::class, 'authorResearch']);
     Route::post('/books/upload', [BookWorkflowController::class, 'upload']);
