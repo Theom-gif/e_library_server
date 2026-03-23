@@ -56,6 +56,12 @@ class AuthorDashboardService
             ->whereIn('book_id', $this->authorBookIdsSubquery($authorId))
             ->count();
 
+        $activeReaders = (int) DB::table('reading_sessions')
+            ->whereIn('book_id', $this->authorBookIdsSubquery($authorId))
+            ->where('started_at', '>=', CarbonImmutable::now()->subDays(30))
+            ->distinct('user_id')
+            ->count('user_id');
+
         $currentWindowStart = CarbonImmutable::now()->subDays(30);
         $previousWindowStart = CarbonImmutable::now()->subDays(60);
         $previousWindowEnd = $currentWindowStart;
@@ -94,6 +100,7 @@ class AuthorDashboardService
             'stats' => [
                 'totalSales' => 0,
                 'totalReaders' => $totalReaders,
+                'activeReaders' => $activeReaders,
                 'totalReads' => $totalReads,
                 'averageRating' => round($averageRating, 2),
                 'totalBooks' => $totalBooks,
@@ -105,9 +112,14 @@ class AuthorDashboardService
             'trends' => [
                 'totalSales' => 0,
                 'totalReaders' => $readersThisWindow - $readersPreviousWindow,
+                'activeReaders' => $readersThisWindow - $readersPreviousWindow,
                 'totalReads' => $readsThisWindow - $readsPreviousWindow,
                 'totalBooks' => $booksThisWindow - $booksPreviousWindow,
                 'averageRating' => 0,
+            ],
+            'meta' => [
+                'sales_available' => false,
+                'active_readers_window_days' => 30,
             ],
         ];
     }
@@ -158,7 +170,9 @@ class AuthorDashboardService
                 $points[] = [
                     'key' => $key,
                     'label' => $cursor->format('M Y'),
+                    'sales' => 0,
                     'reads' => $bucketSessions->count(),
+                    'activeReaders' => $bucketSessions->pluck('user_id')->unique()->count(),
                     'uniqueReaders' => $bucketSessions->pluck('user_id')->unique()->count(),
                     'minutesRead' => (int) round($bucketSessions->sum('duration_seconds') / 60),
                     'booksPublished' => $bucketBooks->count(),
@@ -180,7 +194,9 @@ class AuthorDashboardService
                 $points[] = [
                     'key' => $key,
                     'label' => $cursor->format('M j'),
+                    'sales' => 0,
                     'reads' => $bucketSessions->count(),
+                    'activeReaders' => $bucketSessions->pluck('user_id')->unique()->count(),
                     'uniqueReaders' => $bucketSessions->pluck('user_id')->unique()->count(),
                     'minutesRead' => (int) round($bucketSessions->sum('duration_seconds') / 60),
                     'booksPublished' => $bucketBooks->count(),
@@ -195,6 +211,7 @@ class AuthorDashboardService
             'meta' => [
                 'range' => $range,
                 'generated_at' => now()->toIso8601String(),
+                'sales_available' => false,
             ],
         ];
     }
@@ -251,6 +268,7 @@ class AuthorDashboardService
                 'author' => $book->author_name,
                 'status' => strtolower((string) $book->status),
                 'cover_image_url' => $this->resolveAssetUrl($book->cover_image_path, $book->cover_image_url),
+                'totalSales' => 0,
                 'totalReads' => (int) ($session->reads_count ?? $book->total_reads ?? 0),
                 'uniqueReaders' => (int) ($session->unique_readers ?? 0),
                 'averageRating' => round((float) ($rating->average_rating ?? $book->average_rating ?? 0), 2),
@@ -284,6 +302,7 @@ class AuthorDashboardService
             'meta' => [
                 'limit' => max(1, $limit),
                 'generated_at' => now()->toIso8601String(),
+                'sales_available' => false,
             ],
         ];
     }
@@ -302,6 +321,7 @@ class AuthorDashboardService
             ->get([
                 'bc.id',
                 'bc.content',
+                'bc.rating',
                 'bc.likes_count',
                 'bc.created_at',
                 'b.id as book_id',
@@ -317,6 +337,7 @@ class AuthorDashboardService
                 return [
                     'id' => (int) $row->id,
                     'content' => $row->content,
+                    'rating' => $row->rating !== null ? (int) $row->rating : null,
                     'likesCount' => (int) $row->likes_count,
                     'createdAt' => CarbonImmutable::parse($row->created_at)->toIso8601String(),
                     'book' => [
@@ -386,10 +407,15 @@ class AuthorDashboardService
             }
         }
 
+        $ageDistribution = $this->buildAgeDistribution($authorId);
+        $regionalBreakdown = $this->buildRegionalBreakdown($authorId);
+
         return [
             'summary' => [
                 'totalReaders' => $readerRows->count(),
                 'totalDevicesTracked' => count($deviceCounts),
+                'ageDataAvailable' => $ageDistribution !== [],
+                'regionalDataAvailable' => $regionalBreakdown !== [],
             ],
             'devices' => $deviceCounts,
             'readerSegments' => [
@@ -397,7 +423,91 @@ class AuthorDashboardService
                 ['label' => 'growing', 'count' => $segmentCounts['growing']],
                 ['label' => 'loyal', 'count' => $segmentCounts['loyal']],
             ],
+            'ageDistribution' => $ageDistribution,
+            'regionalBreakdown' => $regionalBreakdown,
         ];
+    }
+
+    /**
+     * @return array<int, array<string, int|string>>
+     */
+    private function buildAgeDistribution(int $authorId): array
+    {
+        $birthColumn = $this->firstExistingUserColumn(['date_of_birth', 'birth_date', 'dob']);
+        if ($birthColumn === null) {
+            return [];
+        }
+
+        $rows = DB::table('reading_sessions as rs')
+            ->join('users as u', 'u.id', '=', 'rs.user_id')
+            ->whereIn('rs.book_id', $this->authorBookIdsSubquery($authorId))
+            ->whereNotNull('u.'.$birthColumn)
+            ->select('u.id', 'u.'.$birthColumn.' as birth_date')
+            ->distinct()
+            ->get();
+
+        $buckets = [
+            'under_18' => 0,
+            '18_24' => 0,
+            '25_34' => 0,
+            '35_44' => 0,
+            '45_54' => 0,
+            '55_plus' => 0,
+        ];
+
+        foreach ($rows as $row) {
+            $age = CarbonImmutable::parse($row->birth_date)->age;
+
+            if ($age < 18) {
+                $buckets['under_18']++;
+            } elseif ($age <= 24) {
+                $buckets['18_24']++;
+            } elseif ($age <= 34) {
+                $buckets['25_34']++;
+            } elseif ($age <= 44) {
+                $buckets['35_44']++;
+            } elseif ($age <= 54) {
+                $buckets['45_54']++;
+            } else {
+                $buckets['55_plus']++;
+            }
+        }
+
+        return collect($buckets)
+            ->map(fn (int $count, string $label): array => [
+                'label' => $label,
+                'count' => $count,
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, array<string, int|string>>
+     */
+    private function buildRegionalBreakdown(int $authorId): array
+    {
+        $regionColumn = $this->firstExistingUserColumn(['country', 'region', 'state', 'province', 'city', 'location']);
+        if ($regionColumn === null) {
+            return [];
+        }
+
+        return DB::table('reading_sessions as rs')
+            ->join('users as u', 'u.id', '=', 'rs.user_id')
+            ->whereIn('rs.book_id', $this->authorBookIdsSubquery($authorId))
+            ->whereNotNull('u.'.$regionColumn)
+            ->where('u.'.$regionColumn, '!=', '')
+            ->selectRaw('u.'.$regionColumn.' as label, COUNT(DISTINCT u.id) as count')
+            ->groupBy('u.'.$regionColumn)
+            ->orderByDesc('count')
+            ->limit(10)
+            ->get()
+            ->map(fn (object $row): array => [
+                'label' => (string) $row->label,
+                'count' => (int) $row->count,
+            ])
+            ->values()
+            ->all();
     }
 
     private function authorBooksBaseQuery(int $authorId): Builder
@@ -460,5 +570,16 @@ class AuthorDashboardService
         }
 
         return url(Storage::disk('public')->url($value));
+    }
+
+    private function firstExistingUserColumn(array $columns): ?string
+    {
+        foreach ($columns as $column) {
+            if (Schema::hasColumn('users', $column)) {
+                return $column;
+            }
+        }
+
+        return null;
     }
 }
