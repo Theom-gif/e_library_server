@@ -10,13 +10,13 @@ use App\Http\Controllers\Api\AdminUserController;
 use App\Http\Controllers\Api\AuthorDashboardController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BookController;
-use App\Http\Controllers\Api\BookInteractionController;
 use App\Http\Controllers\Api\BookWorkflowController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\PostController;
 use App\Http\Controllers\Api\Reader\DownloadController as ReaderDownloadController;
 use App\Http\Controllers\Api\Reader\FavoriteController as ReaderFavoriteController;
 use App\Http\Controllers\Api\Reader\ReadingSessionController;
+use App\Http\Controllers\Api\Reader\ReviewController as ReaderReviewController;
 use App\Http\Controllers\Author\BookController as AuthorBookController;
 use Illuminate\Support\Facades\Route;
 
@@ -66,10 +66,11 @@ Route::post('/author/upload', [BookController::class, 'store']);
 Route::post('/author/books/upload', [BookController::class, 'store']);
 Route::post('/author/books/create', [BookController::class, 'store']);
 
-Route::get('/books/{book}/comments', [BookInteractionController::class, 'listComments'])->name('api.books.comments.index');
-Route::get('/books/{book}/ratings', [BookInteractionController::class, 'ratings'])->name('api.books.ratings.index');
-Route::get('/books/{book}/rating', [BookInteractionController::class, 'ratings']);
-Route::get('/ratings/{book}', [BookInteractionController::class, 'ratings']);
+Route::get('/books/{book}/comments', [ReaderReviewController::class, 'listComments'])->name('api.books.comments.index');
+Route::get('/books/{book}/reviews', [ReaderReviewController::class, 'listReviews'])->name('api.books.reviews.index');
+Route::get('/books/{book}/ratings', [ReaderReviewController::class, 'ratings'])->name('api.books.ratings.index');
+Route::get('/books/{book}/rating', [ReaderReviewController::class, 'ratings']);
+Route::get('/ratings/{book}', [ReaderReviewController::class, 'ratings']);
 
 Route::apiResource('posts', PostController::class);
 
@@ -77,9 +78,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', [AuthController::class, 'getCurrentUser']);
     Route::post('/logout', [AuthController::class, 'logout']);
 
-    Route::post('/books/{book}/comments', [BookInteractionController::class, 'addComment'])->name('api.books.comments.store');
-    Route::post('/books/{book}/ratings', [BookInteractionController::class, 'rate'])->name('api.books.ratings.store');
-    Route::post('/books/{book}/rating', [BookInteractionController::class, 'rate']);
+    Route::post('/books/{book}/comments', [ReaderReviewController::class, 'addComment'])->name('api.books.comments.store');
+    Route::post('/books/{book}/reviews', [ReaderReviewController::class, 'createReview'])->name('api.books.reviews.store');
+    Route::patch('/reviews/{id}', [ReaderReviewController::class, 'updateReview'])->name('api.reviews.update');
+    Route::delete('/reviews/{id}', [ReaderReviewController::class, 'deleteReview'])->name('api.reviews.destroy');
+    Route::post('/reviews/{id}/like', [ReaderReviewController::class, 'likeReview'])->name('api.reviews.like');
+    Route::post('/reviews/{id}/unlike', [ReaderReviewController::class, 'unlikeReview'])->name('api.reviews.unlike');
+    Route::post('/books/{book}/ratings', [ReaderReviewController::class, 'rate'])->name('api.books.ratings.store');
+    Route::post('/books/{book}/rating', [ReaderReviewController::class, 'rate']);
 
     Route::get('/favorites', [ReaderFavoriteController::class, 'index']);
     Route::post('/favorites', [ReaderFavoriteController::class, 'store']);
