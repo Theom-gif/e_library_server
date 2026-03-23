@@ -1,12 +1,12 @@
 <?php
 
-use App\Http\Controllers\Admin\BookController as AdminBookController;
-use App\Http\Controllers\Api\AdminCategoryController;
-use App\Http\Controllers\Api\AdminDashboardController;
-use App\Http\Controllers\Api\AdminSystemMonitorController;
-use App\Http\Controllers\Api\AdminReaderLeaderboardController;
-use App\Http\Controllers\Api\AdminSettingsController;
-use App\Http\Controllers\Api\AdminUserController;
+use App\Http\Controllers\Api\Admin\AdminCategoryController;
+use App\Http\Controllers\Api\Admin\AdminDashboardController;
+use App\Http\Controllers\Api\Admin\AdminReaderLeaderboardController;
+use App\Http\Controllers\Api\Admin\AdminSettingsController;
+use App\Http\Controllers\Api\Admin\AdminSystemMonitorController;
+use App\Http\Controllers\Api\Admin\AdminUserController;
+use App\Http\Controllers\Api\Admin\BookController as AdminBookController;
 use App\Http\Controllers\Api\AuthorDashboardController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BookController;
