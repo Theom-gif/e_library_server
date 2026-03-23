@@ -17,7 +17,7 @@ use App\Http\Controllers\Api\Reader\DownloadController as ReaderDownloadControll
 use App\Http\Controllers\Api\Reader\FavoriteController as ReaderFavoriteController;
 use App\Http\Controllers\Api\Reader\ReadingSessionController;
 use App\Http\Controllers\Api\Reader\ReviewController as ReaderReviewController;
-use App\Http\Controllers\Author\BookController as AuthorBookController;
+use App\Http\Controllers\Api\Author\BookController as AuthorBookController;
 use Illuminate\Support\Facades\Route;
 
 /*

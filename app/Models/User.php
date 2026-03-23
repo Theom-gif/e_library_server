@@ -10,6 +10,11 @@ use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
+    public function update(array $attributes = [], array $options = [])
+    {
+        \Log::info('User model update called', ['attributes' => $attributes]);
+        return parent::update($attributes, $options);
+    }
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable, HasApiTokens;
 

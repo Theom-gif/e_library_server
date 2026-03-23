@@ -19,6 +19,22 @@ use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
+       protected function convertLocalImageToUrl($localPath, $folder = 'avatars')
+    {
+        if (!file_exists($localPath)) {
+            return null;
+        }
+        $ext = pathinfo($localPath, PATHINFO_EXTENSION);
+        $encryptedName = \Illuminate\Support\Str::random(40) . '.' . $ext;
+        $storagePath = storage_path('app/public/' . $folder);
+        if (!is_dir($storagePath)) {
+            mkdir($storagePath, 0777, true);
+        }
+        $destination = $storagePath . DIRECTORY_SEPARATOR . $encryptedName;
+        copy($localPath, $destination);
+        // Return the public URL
+        return url('storage/' . $folder . '/' . $encryptedName);
+    }
     // --------------------------------------
     // Register User
     // --------------------------------------
