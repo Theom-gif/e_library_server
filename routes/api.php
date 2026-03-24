@@ -7,8 +7,10 @@ use App\Http\Controllers\Api\Admin\AdminSettingsController;
 use App\Http\Controllers\Api\Admin\AdminSystemMonitorController;
 use App\Http\Controllers\Api\Admin\AdminUserController;
 use App\Http\Controllers\Api\Admin\BookController as AdminBookController;
-use App\Http\Controllers\Api\AuthorDashboardController;
+use App\Http\Controllers\Api\Author\AuthorDashboardController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\ProfileController;
+use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\BookController;
 use App\Http\Controllers\Api\BookWorkflowController;
 use App\Http\Controllers\Api\CategoryController;
@@ -40,15 +42,11 @@ Route::prefix('auth')->group(function () {
     Route::post('/author_registration', [AuthController::class, 'authorRegister']);
     Route::post('/login', [AuthController::class, 'login']);
     Route::post('/book-view', [BookController::class, 'storeBookView']);
-    Route::post('/request-password-reset', [AuthController::class, 'requestPasswordReset']);
-    Route::post('/reset-password', [AuthController::class, 'resetPassword']);
+    Route::post('/request-password-reset', [PasswordResetController::class, 'requestPasswordReset']);
+    Route::post('/reset-password', [PasswordResetController::class, 'resetPassword']);
 });
 
 Route::apiResource('categories', CategoryController::class);
-Route::get('/category', [CategoryController::class, 'index']);
-Route::get('/categories/all', [CategoryController::class, 'index']);
-Route::get('/author/categories', [CategoryController::class, 'index']);
-Route::get('/author/books/categories', [CategoryController::class, 'index']);
 
 Route::get('/books', [BookWorkflowController::class, 'approvedBooks'])->name('api.books.index');
 Route::get('/book', [BookWorkflowController::class, 'approvedBooks']);
@@ -60,7 +58,6 @@ Route::post('/books/{book}/download', [BookWorkflowController::class, 'resolveDo
 
 // Legacy write aliases used by existing frontend clients.
 Route::post('/books', [BookController::class, 'store']);
-Route::post('/book', [BookController::class, 'store']);
 Route::patch('/books/{id}', [BookController::class, 'updateBook']);
 Route::delete('/books/{id}', [BookController::class, 'deleteBook']);
 Route::post('/author/upload', [BookController::class, 'store']);
@@ -70,13 +67,11 @@ Route::post('/author/books/create', [BookController::class, 'store']);
 Route::get('/books/{book}/comments', [ReaderReviewController::class, 'listComments'])->name('api.books.comments.index');
 Route::get('/books/{book}/reviews', [ReaderReviewController::class, 'listReviews'])->name('api.books.reviews.index');
 Route::get('/books/{book}/ratings', [ReaderReviewController::class, 'ratings'])->name('api.books.ratings.index');
-Route::get('/books/{book}/rating', [ReaderReviewController::class, 'ratings']);
-Route::get('/ratings/{book}', [ReaderReviewController::class, 'ratings']);
 
 Route::apiResource('posts', PostController::class);
 
 Route::middleware('auth:sanctum')->group(function () {
-    Route::get('/user', [AuthController::class, 'getCurrentUser']);
+    
     Route::post('/logout', [AuthController::class, 'logout']);
 
     Route::post('/books/{book}/comments', [ReaderReviewController::class, 'addComment'])->name('api.books.comments.store');
@@ -101,17 +96,17 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     Route::prefix('me')->group(function () {
-        Route::get('/', [AuthController::class, 'getCurrentUser']);
-        Route::get('/profile', [AuthController::class, 'getCurrentUser']);
-        Route::match(['patch', 'put'], '/profile', [AuthController::class, 'updateProfile']);
+        Route::get('/', [ProfileController::class, 'getCurrentUser']);
+        Route::get('/profile', [ProfileController::class, 'getCurrentUser']);
+        Route::match(['patch', 'put'], '/profile', [ProfileController::class, 'updateProfile']);
         Route::get('/reading-activity', [ReadingSessionController::class, 'activity']);
     });
 
     Route::prefix('auth')->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);
-        Route::get('/me', [AuthController::class, 'getCurrentUser']);
-        Route::patch('/update-profile', [AuthController::class, 'updateProfile']);
-        Route::post('/change-password', [AuthController::class, 'changePassword']);
+        Route::get('/me', [ProfileController::class, 'getCurrentUser']);
+        Route::patch('/update-profile', [ProfileController::class, 'updateProfile']);
+        Route::post('/change-password', [ProfileController::class, 'changePassword']);
 
         Route::middleware('role:author,admin')->group(function () {
             Route::get('/books', [AuthorBookController::class, 'index']);
@@ -156,8 +151,6 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(functi
 
     Route::get('/settings', [AdminSettingsController::class, 'show']);
     Route::match(['put', 'patch', 'post'], '/settings', [AdminSettingsController::class, 'changePassword']);
-    Route::match(['put', 'patch', 'post'], '/settings/change-password', [AdminSettingsController::class, 'changePassword']);
-    Route::match(['put', 'patch', 'post'], '/settings/password', [AdminSettingsController::class, 'changePassword']);
 
     Route::get('/categories', [AdminCategoryController::class, 'index']);
     Route::post('/categories', [AdminCategoryController::class, 'store']);
