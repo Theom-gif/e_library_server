@@ -15,6 +15,8 @@ use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
+use App\Models\Book;
 
 class ReadingSessionController extends Controller
 {
@@ -84,6 +86,13 @@ class ReadingSessionController extends Controller
             return $session;
         });
 
+        // Invalidate leaderboard cache for affected author (so new reader counts appear promptly)
+        try {
+            $this->clearLeaderboardCache($book->author_id ?? null);
+        } catch (\Exception $e) {
+            // non-fatal
+        }
+
         return response()->json([
             'success' => true,
             'data' => [
@@ -142,6 +151,16 @@ class ReadingSessionController extends Controller
             return $locked->refresh();
         });
 
+        // Only invalidate when we accepted non-zero seconds (meaning reading progress changed)
+        if ($seconds > 0) {
+            try {
+                $book = Book::query()->find($session->book_id);
+                $this->clearLeaderboardCache($book?->author_id ?? null);
+            } catch (\Exception $e) {
+                // non-fatal
+            }
+        }
+
         return response()->json([
             'success' => true,
             'data' => [
@@ -197,6 +216,14 @@ class ReadingSessionController extends Controller
 
             return $locked->refresh();
         });
+
+        // Invalidate leaderboard cache for affected author (reading finished)
+        try {
+            $book = Book::query()->find($session->book_id);
+            $this->clearLeaderboardCache($book?->author_id ?? null);
+        } catch (\Exception $e) {
+            // non-fatal
+        }
 
         return response()->json([
             'success' => true,
@@ -306,6 +333,27 @@ class ReadingSessionController extends Controller
         $accepted = min($elapsed, $reported, self::HEARTBEAT_CAP_SECONDS);
 
         return max(0, $accepted);
+    }
+
+    /**
+     * Clear leaderboard cache keys for common ranges/limits. Called when reading sessions change.
+     */
+    private function clearLeaderboardCache(?int $authorId = null): void
+    {
+        $ranges = ['all', 'month', 'week'];
+        $limits = [50, 10, 5];
+
+        foreach ($ranges as $range) {
+            foreach ($limits as $limit) {
+                $authorPart = $authorId ? (string) $authorId : 'all';
+                $key = "admin:leaderboard:readers:{$range}:{$limit}:author:{$authorPart}";
+                try {
+                    Cache::forget($key);
+                } catch (\Exception $e) {
+                    // ignore
+                }
+            }
+        }
     }
 
     private function addDailyActivitySeconds(int $userId, CarbonImmutable $occurredAt, int $seconds): void
