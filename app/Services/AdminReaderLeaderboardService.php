@@ -13,14 +13,15 @@ class AdminReaderLeaderboardService
     /**
      * @return array{data: array<int, array<string, mixed>>, meta: array<string, mixed>}
      */
-    public function getLeaderboard(string $range = 'all', int $limit = 50): array
+    public function getLeaderboard(string $range = 'all', int $limit = 50, ?int $authorId = null): array
     {
         $limit = max(1, min($limit, 100));
         $range = in_array($range, ['all', 'month', 'week'], true) ? $range : 'all';
 
-        $cacheKey = "admin:leaderboard:readers:{$range}:{$limit}";
+        $authorPart = $authorId ? (string) $authorId : 'all';
+        $cacheKey = "admin:leaderboard:readers:{$range}:{$limit}:author:{$authorPart}";
 
-        return Cache::remember($cacheKey, now()->addMinutes(10), function () use ($range, $limit) {
+        return Cache::remember($cacheKey, now()->addMinutes(10), function () use ($range, $limit, $authorId) {
             $currentWindowStart = match ($range) {
                 'week' => CarbonImmutable::now()->subWeek(),
                 'month' => CarbonImmutable::now()->subMonth(),
@@ -39,8 +40,8 @@ class AdminReaderLeaderboardService
                 default => null,
             };
 
-            $leaders = $this->buildLeaderboard($currentWindowStart, null, $limit);
-            $previousCounts = $this->buildPreviousCounts($previousWindowStart, $previousWindowEnd);
+            $leaders = $this->buildLeaderboard($currentWindowStart, null, $limit, $authorId);
+            $previousCounts = $this->buildPreviousCounts($previousWindowStart, $previousWindowEnd, $authorId);
 
             $data = $leaders->map(function (object $row) use ($previousCounts): array {
                 $previous = (int) ($previousCounts[$row->user_id] ?? 0);
@@ -70,8 +71,10 @@ class AdminReaderLeaderboardService
         });
     }
 
-    private function buildLeaderboard(?CarbonImmutable $from, ?CarbonImmutable $to, int $limit): Collection
+    private function buildLeaderboard(?CarbonImmutable $from, ?CarbonImmutable $to, int $limit, ?int $authorId = null): Collection
     {
+        $this->currentAuthorId = $authorId;
+
         return DB::table('reading_sessions as rs')
             ->join('users as u', 'u.id', '=', 'rs.user_id')
             ->selectRaw('
@@ -83,6 +86,12 @@ class AdminReaderLeaderboardService
                 u.created_at,
                 COUNT(DISTINCT rs.book_id) as books_read
             ')
+            ->when($this->authorFilterProvided(), function ($query) {
+                $query->join('books as b', 'b.id', '=', 'rs.book_id');
+            })
+            ->when($this->authorFilterProvided(), function ($query) {
+                $query->where('b.author_id', $this->currentAuthorId);
+            })
             ->where('u.role_id', 3)
             ->when($from, fn ($query) => $query->where('rs.started_at', '>=', $from))
             ->when($to, fn ($query) => $query->where('rs.started_at', '<', $to))
@@ -96,22 +105,37 @@ class AdminReaderLeaderboardService
     /**
      * @return array<int, int>
      */
-    private function buildPreviousCounts(?CarbonImmutable $from, ?CarbonImmutable $to): array
+    private function buildPreviousCounts(?CarbonImmutable $from, ?CarbonImmutable $to, ?int $authorId = null): array
     {
         if (!$from || !$to) {
             return [];
         }
+        $this->currentAuthorId = $authorId;
 
-        return DB::table('reading_sessions as rs')
+        $query = DB::table('reading_sessions as rs')
             ->join('users as u', 'u.id', '=', 'rs.user_id')
             ->selectRaw('rs.user_id, COUNT(DISTINCT rs.book_id) as books_read')
             ->where('u.role_id', 3)
             ->where('rs.started_at', '>=', $from)
             ->where('rs.started_at', '<', $to)
-            ->groupBy('rs.user_id')
-            ->pluck('books_read', 'user_id')
+            ->groupBy('rs.user_id');
+
+        if ($this->authorFilterProvided()) {
+            $query->join('books as b', 'b.id', '=', 'rs.book_id')
+                ->where('b.author_id', $this->currentAuthorId);
+        }
+
+        return $query->pluck('books_read', 'user_id')
             ->map(fn ($count) => (int) $count)
             ->all();
+    }
+
+    // --- author filter state helpers (internal) -------------------------------------------------
+    private ?int $currentAuthorId = null;
+
+    private function authorFilterProvided(): bool
+    {
+        return is_int($this->currentAuthorId) && $this->currentAuthorId > 0;
     }
 
     private function resolveAvatarUrl(?string $avatar): ?string
