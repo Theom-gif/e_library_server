@@ -42,15 +42,19 @@ class ProfileController extends Controller
             Log::info('updateProfile | text payload', $payload);
             Log::info('updateProfile | has avatar_file', ['has' => $request->hasFile('avatar_file')]);
 
-            if ($request->hasFile('avatar_file')) {
-                $encrypted = $this->storeAvatarFile($request->file('avatar_file'));
+            // Accept file uploads under either `avatar_file` or `avatar` (some frontends send `avatar` as file)
+            if ($request->hasFile('avatar_file') || $request->hasFile('avatar')) {
+                $fileField = $request->hasFile('avatar_file') ? 'avatar_file' : 'avatar';
+                $file = $request->file($fileField);
+
+                $encrypted = $this->storeAvatarFile($file);
 
                 if (!$encrypted) {
                     return $this->errorResponse('Avatar upload failed', 'Please ensure the file is a valid image under 5MB.', 422);
                 }
 
                 $payload['avatar'] = $encrypted;
-                Log::info('updateProfile | stored local file', ['avatar' => $encrypted]);
+                Log::info('updateProfile | stored local file', ['field' => $fileField, 'avatar' => $encrypted]);
 
             } elseif ($request->filled('avatar')) {
                 $avatarInput = $request->input('avatar');
@@ -62,7 +66,7 @@ class ProfileController extends Controller
                     $payload['avatar'] = $avatarInput;
                 }
 
-                Log::info('updateProfile | using avatar URL', ['avatar' => $payload['avatar']]);
+                Log::info('updateProfile | using avatar URL/string', ['avatar' => $payload['avatar']]);
             }
 
             Log::info('updateProfile | final payload', $payload);
