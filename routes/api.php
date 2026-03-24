@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\Reader\FavoriteController as ReaderFavoriteControll
 use App\Http\Controllers\Api\Reader\ReadingSessionController;
 use App\Http\Controllers\Api\Reader\ReviewController as ReaderReviewController;
 use App\Http\Controllers\Api\Author\BookController as AuthorBookController;
+use App\Http\Controllers\Admin\DashboardController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -144,7 +145,8 @@ Route::middleware(['auth:sanctum', 'role:author'])->prefix('author')->group(func
 
 Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(function () {
     Route::get('/dashboard', [AdminDashboardController::class, 'index']);
-    Route::get('/dashboard/activity', [AdminDashboardController::class, 'activity']);
+    Route::get('/dashboard/activity', [DashboardController::class, 'activity']);
+    Route::get('/dashboard/health', [DashboardController::class, 'health']);
     Route::get('/leaderboard/readers', [AdminReaderLeaderboardController::class, 'index']);
     Route::get('/monitor/summary', [AdminSystemMonitorController::class, 'summary']);
     Route::get('/monitor/activity', [AdminSystemMonitorController::class, 'activity']);

@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log;
 
 class AuthController extends Controller
 {
@@ -152,39 +153,90 @@ class AuthController extends Controller
     // --------------------------------------
     // Update Profile
     // --------------------------------------
-    public function updateProfile(UpdateProfileRequest $request): JsonResponse
-    {
-        $payload = $request->only([
-            'firstname',
-            'lastname',
-            'bio',
-            'facebook_url',
-            'avatar',
-        ]);
+     public function updateProfile(UpdateProfileRequest $request): JsonResponse
+{
+    try {
+        $payload = [];
 
-        $avatarUpload = PublicImage::storeUploaded($request->file('avatar_file') ?? $request->file('avatar'), 'avatars');
-        if ($avatarUpload) {
-            $payload['avatar'] = $avatarUpload['url'];
-        } elseif (array_key_exists('avatar', $payload)) {
-            $payload['avatar'] = PublicImage::normalize($payload['avatar'], 'avatars')['url'] ?? $payload['avatar'];
+        // Step 1: collect text fields
+        foreach (['firstname', 'lastname', 'bio', 'facebook_url'] as $field) {
+            if ($request->exists($field)) {
+                $payload[$field] = $request->input($field);
+            }
         }
 
-        $request->user()->update($payload);
+        Log::info('updateProfile | text payload', $payload);
+        Log::info('updateProfile | has avatar_file', ['has' => $request->hasFile('avatar_file')]);
 
-        if ($request->is('api/me/profile')) {
-            return $this->successResponse(
-                $this->buildProfilePayload($request->user()->fresh()),
-                'Profile updated successfully',
-                200
+        // Step 2: handle avatar BEFORE the empty check
+        // Case 1 — local file upload
+        if ($request->hasFile('avatar_file')) {
+            $encrypted = $this->storeAvatarFile($request->file('avatar_file'));
+
+            if (!$encrypted) {
+                return $this->errorResponse(
+                    'Avatar upload failed',
+                    'Please ensure the file is a valid image under 5MB.',
+                    422
+                );
+            }
+
+            $payload['avatar'] = $encrypted;
+            Log::info('updateProfile | stored local file', ['avatar' => $encrypted]);
+
+        // Case 2 — external HTTPS URL
+        } elseif ($request->filled('avatar')) {
+            $avatarInput = $request->input('avatar');
+
+            if (filter_var($avatarInput, FILTER_VALIDATE_URL)) {
+                $normalized        = PublicImage::normalize($avatarInput, 'avatars');
+                $payload['avatar'] = $normalized['url'] ?? $avatarInput;
+            } else {
+                $payload['avatar'] = $avatarInput;
+            }
+
+            Log::info('updateProfile | using avatar URL', ['avatar' => $payload['avatar']]);
+        }
+
+        Log::info('updateProfile | final payload', $payload);
+
+        // Step 3: NOW check empty — after avatar has been added
+        if (empty($payload)) {
+            return $this->errorResponse(
+                'No fields to update',
+                'Please provide at least one field to update.',
+                422
             );
         }
 
+        $user    = $request->user();
+        $updated = $user->fill($payload)->save();
+
+        Log::info('updateProfile | save result', [
+            'updated' => $updated,
+            'user_id' => $user->id,
+        ]);
+
+        if (!$updated) {
+            return $this->errorResponse('Failed to update profile', 'Please try again.', 500);
+        }
+
         return $this->successResponse(
-            $request->user(),
+            $this->buildProfilePayload($user->fresh()),
             'Profile updated successfully',
             200
         );
+
+    } catch (\Illuminate\Database\QueryException $e) {
+        Log::error('updateProfile | DB error', ['error' => $e->getMessage()]);
+        return $this->errorResponse('Database error', $e->getMessage(), 500);
+
+    } catch (\Exception $e) {
+        Log::error('updateProfile | Unexpected error', ['error' => $e->getMessage()]);
+        return $this->errorResponse('Unexpected error', $e->getMessage(), 500);
     }
+}
+
 
     // --------------------------------------
     // Change Password
@@ -310,6 +362,21 @@ class AuthController extends Controller
         }
 
         return PublicImage::normalize($value, 'avatars')['url'] ?? null;
+    }
+
+    /**
+     * Store an uploaded avatar file into the `public` disk under `avatars/`.
+     * Returns the stored path or null on failure.
+     */
+    private function storeAvatarFile($file): ?string
+    {
+        try {
+            $path = $file->store('avatars', 'public');
+            return $path;
+        } catch (\Exception $e) {
+            Log::error('storeAvatarFile error', ['error' => $e->getMessage()]);
+            return null;
+        }
     }
 
 }
