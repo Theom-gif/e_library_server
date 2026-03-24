@@ -2,12 +2,12 @@
 
 namespace App\Services;
 
+use App\Support\PublicImage;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\Storage;
 
 class AuthorDashboardService
 {
@@ -545,31 +545,12 @@ class AuthorDashboardService
 
     private function resolveAssetUrl(?string $path, ?string $url): ?string
     {
-        $stored = trim((string) $path);
-        if ($stored !== '') {
-            if (preg_match('/^(https?:|data:)/i', $stored)) {
-                return $stored;
-            }
-
-            return url(Storage::disk('public')->url($stored));
-        }
-
-        $direct = trim((string) $url);
-        return $direct !== '' ? $direct : null;
+        return PublicImage::normalize($path ?: $url, 'books/covers')['url'] ?? null;
     }
 
     private function resolveAvatarUrl(?string $avatar): ?string
     {
-        $value = trim((string) $avatar);
-        if ($value === '') {
-            return null;
-        }
-
-        if (preg_match('/^(https?:|data:)/i', $value)) {
-            return $value;
-        }
-
-        return url(Storage::disk('public')->url($value));
+        return PublicImage::normalize($avatar, 'avatars')['url'] ?? null;
     }
 
     private function firstExistingUserColumn(array $columns): ?string

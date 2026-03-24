@@ -5,11 +5,11 @@ namespace App\Http\Controllers\Api\Reader;
 use App\Http\Controllers\Controller;
 use App\Models\Book;
 use App\Models\User;
+use App\Support\PublicImage;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 
 class ReviewController extends Controller
@@ -673,17 +673,7 @@ class ReviewController extends Controller
 
     private function resolveAvatarUrl(?string $avatar): ?string
     {
-        $value = trim((string) $avatar);
-
-        if ($value === '') {
-            return null;
-        }
-
-        if (preg_match('/^(https?:|data:)/i', $value)) {
-            return $value;
-        }
-
-        return url(Storage::disk('public')->url($value));
+        return PublicImage::normalize($avatar, 'avatars')['url'] ?? null;
     }
 
     private function asIsoString($value): ?string

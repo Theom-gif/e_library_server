@@ -9,6 +9,7 @@ use App\Models\Book;
 use App\Models\Category;
 use App\Models\OfflineDownload;
 use App\Models\User;
+use App\Support\PublicImage;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -247,9 +248,8 @@ class BookWorkflowController extends Controller
         $coverFile = $request->file('cover_image');
 
         $pdfPath = $pdfFile->store('books/pdfs', 'public');
-        $coverImagePath = $request->hasFile('cover_image')
-            ? $coverFile->store('books/covers', 'public')
-            : null;
+        $storedCover = PublicImage::storeUploaded($coverFile, 'books/covers');
+        $coverImagePath = $storedCover['path'] ?? null;
 
         try {
             $book = Book::create([
@@ -263,9 +263,7 @@ class BookWorkflowController extends Controller
                 'original_pdf_name' => $pdfFile->getClientOriginalName(),
                 'pdf_mime_type' => $pdfFile->getClientMimeType(),
                 'cover_image_path' => $coverImagePath,
-                'cover_image_url' => $coverImagePath
-                    ? url(Storage::disk('public')->url($coverImagePath))
-                    : null,
+                'cover_image_url' => $storedCover['url'] ?? null,
                 'original_cover_name' => $coverFile?->getClientOriginalName(),
                 'cover_mime_type' => $coverFile?->getClientMimeType(),
                 'file_size_bytes' => $pdfFile->getSize(),

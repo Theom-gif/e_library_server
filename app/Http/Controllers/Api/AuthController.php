@@ -10,52 +10,24 @@ use App\Http\Requests\ResetPasswordRequest;
 use App\Http\Requests\UpdateProfileRequest;
 use App\Http\Requests\admin\RegistationAuthor;
 use App\Models\User;
+use App\Support\PublicImage;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
-       protected function convertLocalImageToUrl($localPath, $folder = 'avatars')
-    {
-        if (!file_exists($localPath)) {
-            return null;
-        }
-        $ext = pathinfo($localPath, PATHINFO_EXTENSION);
-        $encryptedName = \Illuminate\Support\Str::random(40) . '.' . $ext;
-        $storagePath = storage_path('app/public/' . $folder);
-        if (!is_dir($storagePath)) {
-            mkdir($storagePath, 0777, true);
-        }
-        $destination = $storagePath . DIRECTORY_SEPARATOR . $encryptedName;
-        copy($localPath, $destination);
-        // Return the public URL
-        return url('storage/' . $folder . '/' . $encryptedName);
-    }
     // --------------------------------------
     // Register User
     // --------------------------------------
     public function register(RegisterRequest $request): JsonResponse
     {
         try {
-            $user = User::create([
-                'firstname' => $request->firstname,
-                'lastname'  => $request->lastname,
-                'email'     => $request->email,
-                'password'  => $request->password, // auto-hashed by model
-                'role_id'   => $request->role_id,
-            ]);
-
-            $token = $user->createToken('auth_token')->plainTextToken;
-
-            return $this->successResponse([
-                'user'  => $user,
-                'token' => $token,
-            ], 'User registered successfully', 201);
-
+            return $this->registerUser($request->validated());
         } catch (\Exception $e) {
             return $this->errorResponse('Registration failed', $e->getMessage(), 500);
         }
@@ -66,7 +38,11 @@ class AuthController extends Controller
     // --------------------------------------
     public function authorRegister(RegistationAuthor $request): JsonResponse
     {
-        return $this->register($request);
+        try {
+            return $this->registerUser($request->validated());
+        } catch (\Exception $e) {
+            return $this->errorResponse('Registration failed', $e->getMessage(), 500);
+        }
     }
 
     // --------------------------------------
@@ -178,13 +154,22 @@ class AuthController extends Controller
     // --------------------------------------
     public function updateProfile(UpdateProfileRequest $request): JsonResponse
     {
-        $request->user()->update($request->only([
+        $payload = $request->only([
             'firstname',
             'lastname',
             'bio',
             'facebook_url',
             'avatar',
-        ]));
+        ]);
+
+        $avatarUpload = PublicImage::storeUploaded($request->file('avatar_file') ?? $request->file('avatar'), 'avatars');
+        if ($avatarUpload) {
+            $payload['avatar'] = $avatarUpload['url'];
+        } elseif (array_key_exists('avatar', $payload)) {
+            $payload['avatar'] = PublicImage::normalize($payload['avatar'], 'avatars')['url'] ?? $payload['avatar'];
+        }
+
+        $request->user()->update($payload);
 
         if ($request->is('api/me/profile')) {
             return $this->successResponse(
@@ -237,6 +222,27 @@ class AuthController extends Controller
     }
 
     /**
+     * @param array<string, mixed> $validated
+     */
+    private function registerUser(array $validated): JsonResponse
+    {
+        $user = User::create([
+            'firstname' => $validated['firstname'],
+            'lastname' => $validated['lastname'],
+            'email' => $validated['email'],
+            'password' => $validated['password'], // auto-hashed by model
+            'role_id' => $validated['role_id'],
+        ]);
+
+        $token = $user->createToken('auth_token')->plainTextToken;
+
+        return $this->successResponse([
+            'user' => $user,
+            'token' => $token,
+        ], 'User registered successfully', 201);
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function buildProfilePayload(User $user): array
@@ -276,7 +282,7 @@ class AuthController extends Controller
             'bio' => $user->bio,
             'facebook_url' => $user->facebook_url,
             'avatar' => $user->avatar,
-            'avatar_url' => $user->avatar,
+            'avatar_url' => $this->resolveAvatarUrl($user->avatar),
             'created_at' => $user->created_at?->toIso8601String(),
             'updated_at' => $user->updated_at?->toIso8601String(),
             'member_since' => $user->created_at?->toDateString(),
@@ -293,6 +299,17 @@ class AuthController extends Controller
                 'total_reading_minutes' => (int) round($totalReadingSeconds / 60),
             ],
         ];
+    }
+
+    private function resolveAvatarUrl(?string $avatar): ?string
+    {
+        $value = trim((string) $avatar);
+
+        if ($value === '') {
+            return null;
+        }
+
+        return PublicImage::normalize($value, 'avatars')['url'] ?? null;
     }
 
 }

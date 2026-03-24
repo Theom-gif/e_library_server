@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\PublicImage;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
@@ -62,9 +63,9 @@ class Book extends Model
     public static function createFromUpload(array $attributes, ?UploadedFile $coverImage, ?UploadedFile $bookFile): self
     {
         if ($coverImage) {
-            $coverPath = $coverImage->store('books/covers', 'public');
-            $attributes['cover_image_path'] = $coverPath;
-            $attributes['cover_image_url'] = url(Storage::disk('public')->url($coverPath));
+            $storedCover = PublicImage::storeUploaded($coverImage, 'books/covers');
+            $attributes['cover_image_path'] = $storedCover['path'];
+            $attributes['cover_image_url'] = $storedCover['url'];
         }
 
         if ($bookFile) {
@@ -176,16 +177,7 @@ class Book extends Model
 
     private function resolveAssetUrl(?string $pathOrUrl): ?string
     {
-        $value = trim((string) $pathOrUrl);
-        if ($value === '') {
-            return null;
-        }
-
-        if (preg_match('/^(https?:|data:)/i', $value)) {
-            return $value;
-        }
-
-        return url(Storage::disk('public')->url($value));
+        return PublicImage::normalize($pathOrUrl, 'books/covers')['url'] ?? null;
     }
 
     public function category()

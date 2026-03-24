@@ -2,11 +2,11 @@
 
 namespace App\Services;
 
+use App\Support\PublicImage;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 
 class AdminReaderLeaderboardService
 {
@@ -116,15 +116,6 @@ class AdminReaderLeaderboardService
 
     private function resolveAvatarUrl(?string $avatar): ?string
     {
-        $value = trim((string) $avatar);
-        if ($value === '') {
-            return null;
-        }
-
-        if (preg_match('/^(https?:|data:)/i', $value)) {
-            return $value;
-        }
-
-        return url(Storage::disk('public')->url($value));
+        return PublicImage::normalize($avatar, 'avatars')['url'] ?? null;
     }
 }

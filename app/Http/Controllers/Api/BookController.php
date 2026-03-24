@@ -8,6 +8,7 @@ use App\Http\Requests\admin\category\BookUploadRequest;
 use App\Models\Book;
 use App\Models\Category;
 use App\Models\User;
+use App\Support\PublicImage;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -114,7 +115,9 @@ class BookController extends Controller
                 $category = $this->resolveCategory($validated['category'] ?? null);
 
                 $storedBookPath = $bookFile ? $bookFile->store('books/pdfs', 'public') : null;
-                $storedCoverPath = $coverFile ? $coverFile->store('books/covers', 'public') : null;
+                $storedCover = PublicImage::storeUploaded($coverFile, 'books/covers');
+                $normalizedCover = !$coverFile ? PublicImage::normalize($coverImageUrl, 'books/covers') : null;
+                $storedCoverPath = $storedCover['path'] ?? $normalizedCover['path'] ?? null;
 
                 $title = trim((string) ($validated['title'] ?? 'Untitled Book'));
                 $slug = $this->createUniqueSlug($title);
@@ -153,9 +156,7 @@ class BookController extends Controller
                     'book_file_url' => $bookFile
                         ? url(Storage::disk('public')->url($storedBookPath))
                         : $bookFileUrl,
-                    'cover_image_url' => $coverFile
-                        ? url(Storage::disk('public')->url($storedCoverPath))
-                        : $coverImageUrl,
+                    'cover_image_url' => $storedCover['url'] ?? $normalizedCover['url'] ?? $coverImageUrl,
                 ];
 
                 return Book::persistCompatible($payload);
@@ -226,7 +227,9 @@ class BookController extends Controller
                 if ($book->cover_image_path) {
                     Storage::disk('public')->delete($book->cover_image_path);
                 }
-                $validated['cover_image_path'] = $coverFile->store('books/covers', 'public');
+                $storedCover = PublicImage::storeUploaded($coverFile, 'books/covers');
+                $validated['cover_image_path'] = $storedCover['path'];
+                $validated['cover_image_url'] = $storedCover['url'];
                 $validated['original_cover_name'] = $coverFile->getClientOriginalName();
                 $validated['cover_mime_type'] = $coverFile->getClientMimeType();
             }
@@ -243,17 +246,14 @@ class BookController extends Controller
                 $validated['file_size_bytes'] = $bookFile->getSize();
             }
 
-            if (!empty($validated['cover_image_path']) && empty($validated['cover_image_url'])) {
-                $validated['cover_image_url'] = url(Storage::disk('public')->url($validated['cover_image_path']));
-            }
-
             if (!empty($validated['pdf_path']) && empty($validated['book_file_url'])) {
                 $validated['book_file_url'] = url(Storage::disk('public')->url($validated['pdf_path']));
             }
 
             if (!$coverFile && is_string($coverImageUrl) && $coverImageUrl !== '') {
-                $validated['cover_image_url'] = $coverImageUrl;
-                $validated['cover_image_path'] = null;
+                $normalizedCover = PublicImage::normalize($coverImageUrl, 'books/covers');
+                $validated['cover_image_url'] = $normalizedCover['url'] ?? $coverImageUrl;
+                $validated['cover_image_path'] = $normalizedCover['path'] ?? null;
                 $validated['original_cover_name'] = null;
                 $validated['cover_mime_type'] = null;
             }

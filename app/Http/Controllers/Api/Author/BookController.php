@@ -7,6 +7,7 @@ use App\Http\Requests\author\StoreBookRequest;
 use App\Http\Requests\author\UpdateBookRequest;
 use App\Models\Book;
 use App\Models\Category;
+use App\Support\PublicImage;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -60,7 +61,9 @@ class BookController extends Controller
             $categoryName = $validated['category'] ?? Category::query()->find($categoryId)?->name;
 
             $storedBookPath = $bookFile ? $bookFile->store('books/pdfs', 'public') : null;
-            $storedCoverPath = $coverFile ? $coverFile->store('books/covers', 'public') : null;
+            $storedCover = PublicImage::storeUploaded($coverFile, 'books/covers');
+            $normalizedCover = !$coverFile ? PublicImage::normalize($validated['cover_image_url'] ?? null, 'books/covers') : null;
+            $storedCoverPath = $storedCover['path'] ?? $normalizedCover['path'] ?? null;
 
             $bookUrl = $validated['book_file_url'] ?? null;
             $coverUrl = $validated['cover_image_url'] ?? null;
@@ -96,9 +99,10 @@ class BookController extends Controller
 
             if ($storedCoverPath) {
                 $payload['cover_image_path'] = $storedCoverPath;
-                $payload['cover_image_url'] = url(Storage::disk('public')->url($storedCoverPath));
+                $payload['cover_image_url'] = $storedCover['url'];
             } elseif (is_string($coverUrl) && $coverUrl !== '') {
-                $payload['cover_image_url'] = $coverUrl;
+                $payload['cover_image_path'] = $normalizedCover['path'] ?? null;
+                $payload['cover_image_url'] = $normalizedCover['url'] ?? $coverUrl;
             }
 
             return Book::persistCompatible($payload);
@@ -147,11 +151,13 @@ class BookController extends Controller
 
         if ($coverFile) {
             $this->deleteStoredAsset($book->cover_image_path);
-            $storedCoverPath = $coverFile->store('books/covers', 'public');
-            $update['cover_image_path'] = $storedCoverPath;
-            $update['cover_image_url'] = url(Storage::disk('public')->url($storedCoverPath));
+            $storedCover = PublicImage::storeUploaded($coverFile, 'books/covers');
+            $update['cover_image_path'] = $storedCover['path'];
+            $update['cover_image_url'] = $storedCover['url'];
         } elseif (array_key_exists('cover_image_url', $update) && $update['cover_image_url']) {
-            $update['cover_image_path'] = null;
+            $normalizedCover = PublicImage::normalize((string) $update['cover_image_url'], 'books/covers');
+            $update['cover_image_path'] = $normalizedCover['path'] ?? null;
+            $update['cover_image_url'] = $normalizedCover['url'] ?? $update['cover_image_url'];
         }
 
         if ($bookFile) {

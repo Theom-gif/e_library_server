@@ -27,6 +27,7 @@ class UpdateProfileRequest extends FormRequest
             'bio' => 'sometimes|nullable|string|max:1000',
             'facebook_url' => 'sometimes|nullable|url',
             'avatar' => 'sometimes|nullable|string',
+            'avatar_file' => 'sometimes|nullable|image|max:5120',
         ];
     }
 

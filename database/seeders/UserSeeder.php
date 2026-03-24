@@ -2,12 +2,18 @@
 
 namespace Database\Seeders;
 
+use App\Support\PublicImage;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
 class UserSeeder extends Seeder
 {
+    private function normalizeAvatar(?string $value): ?string
+    {
+        return PublicImage::normalize($value, 'avatars')['url'] ?? null;
+    }
+
     public function run(): void
     {
         $users = [
@@ -26,7 +32,7 @@ class UserSeeder extends Seeder
                 'lastname'  => 'System',
                 'email'     => 'sokthalyta@gmail.com',
                 'password'  => 'yadmin123',
-                'avatar'    => 'https://picsum.photos/seed/admin-2/300/300',
+                'avatar'    => 'C:\Users\Admin\Desktop\VC1-Backend\public\storage\books\covers\cute.jpg',
                 'role_id'   => 1,
             ],
             [
@@ -34,7 +40,7 @@ class UserSeeder extends Seeder
                 'lastname'  => 'System',
                 'email'     => 'sinatlek026@gmail.com',
                 'password'  => 'yadmin123',
-                'avatar'    => 'https://picsum.photos/seed/admin-3/300/300',
+                'avatar'    => 'C:\Users\Admin\Desktop\VC1-Backend\public\storage\books\covers\Wh67mzj2fSQeEm6phEftDH18aUZ6CGu5lZzUzV1L.png',
                 'role_id'   => 1,
             ],
             [
@@ -42,7 +48,7 @@ class UserSeeder extends Seeder
                 'lastname'  => 'System',
                 'email'     => 'hengliheang91@gmail.com',
                 'password'  => 'yadmin123',
-                'avatar'    => 'https://picsum.photos/seed/admin-4/300/300',
+                'avatar'    => 'C:\Users\Admin\Desktop\VC1-Backend\public\storage\books\covers\p6p7QLwRuHqfT2F3ewUbf4TCWA1vMANVAObxMKD6.jpg',
                 'role_id'   => 3,
             ],
             [
@@ -50,7 +56,7 @@ class UserSeeder extends Seeder
                 'lastname'  => 'System',
                 'email'     => 'seylasok311@gmail.com',
                 'password'  => 'yadmin123',
-                'avatar'    => 'https://picsum.photos/seed/admin-5/300/300',
+                'avatar'    => 'C:\Users\Admin\Desktop\VC1-Backend\public\storage\books\covers\cKnlAkQEGpXw05eWtzQnkLgIXCPHq2DBEYyP8Bwy.jpg',
                 'role_id'   => 2,
             ],
 
@@ -83,7 +89,7 @@ class UserSeeder extends Seeder
                     'lastname'  => $user['lastname'],
                     'password'  => Hash::make($user['password']),
                     'role_id'   => $user['role_id'],
-                    'avatar'    => $user['avatar'] ?? null,
+                    'avatar'    => $this->normalizeAvatar($user['avatar'] ?? null),
                     'email_verified_at' => now(),
                     'created_at' => now(),
                     'updated_at' => now(),
