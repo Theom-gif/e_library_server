@@ -99,6 +99,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/', [ProfileController::class, 'getCurrentUser']);
         Route::get('/profile', [ProfileController::class, 'getCurrentUser']);
         Route::match(['patch', 'put'], '/profile', [ProfileController::class, 'updateProfile']);
+        Route::post('/avatar', [ProfileController::class, 'uploadAvatar']);
         Route::get('/reading-activity', [ReadingSessionController::class, 'activity']);
     });
 

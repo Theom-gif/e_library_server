@@ -179,4 +179,41 @@ class ProfileController extends Controller
         }
     }
 
+    public function uploadAvatar(Request $request): JsonResponse
+    {
+        try {
+            if (!$request->hasFile('avatar') && !$request->hasFile('avatar_file')) {
+                return $this->errorResponse('No avatar file provided', null, 422);
+            }
+
+            $fileField = $request->hasFile('avatar') ? 'avatar' : 'avatar_file';
+            $file = $request->file($fileField);
+
+            // Basic validation: image and max 5MB
+            $validator = \Validator::make([$fileField => $file], [
+                $fileField => 'required|image|max:5120',
+            ]);
+
+            if ($validator->fails()) {
+                return $this->errorResponse('Invalid avatar file', $validator->errors(), 422);
+            }
+
+            $path = $this->storeAvatarFile($file);
+
+            if (!$path) {
+                return $this->errorResponse('Avatar upload failed', null, 500);
+            }
+
+            $user = $request->user();
+            $user->avatar = $path;
+            $user->save();
+
+            return $this->successResponse(['avatar' => $user->avatar, 'avatar_url' => $this->resolveAvatarUrl($user->avatar)], 'Avatar uploaded successfully', 200);
+
+        } catch (\Exception $e) {
+            Log::error('uploadAvatar | Unexpected error', ['error' => $e->getMessage()]);
+            return $this->errorResponse('Unexpected error', $e->getMessage(), 500);
+        }
+    }
+
 }
