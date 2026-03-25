@@ -107,4 +107,3 @@ Table: `favorites`
 
 Constraints:
 - Unique index: `(user_id, book_id)`
-
