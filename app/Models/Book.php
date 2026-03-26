@@ -71,7 +71,7 @@ class Book extends Model
         if ($bookFile) {
             $bookPath = $bookFile->store('books/files', 'public');
             $attributes['book_file_path'] = $bookPath;
-            $attributes['book_file_url'] = url(Storage::disk('public')->url($bookPath));
+            $attributes['book_file_url'] = Storage::disk('public')->url($bookPath);
         }
 
         if (!empty($attributes['cover_image_url']) && str_starts_with((string) $attributes['cover_image_url'], 'blob:')) {

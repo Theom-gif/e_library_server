@@ -88,7 +88,7 @@ class BookController extends Controller
             if ($storedBookPath) {
                 $payload['pdf_path'] = $storedBookPath;
                 $payload['book_file_path'] = $storedBookPath;
-                $payload['book_file_url'] = url(Storage::disk('public')->url($storedBookPath));
+                $payload['book_file_url'] = Storage::disk('public')->url($storedBookPath);
                 $payload['pdf_mime_type'] = $bookFile?->getClientMimeType();
                 $payload['file_size_bytes'] = $bookFile?->getSize();
             } elseif (is_string($bookUrl) && $bookUrl !== '') {
@@ -165,7 +165,7 @@ class BookController extends Controller
             $storedBookPath = $bookFile->store('books/pdfs', 'public');
             $update['pdf_path'] = $storedBookPath;
             $update['book_file_path'] = $storedBookPath;
-            $update['book_file_url'] = url(Storage::disk('public')->url($storedBookPath));
+            $update['book_file_url'] = Storage::disk('public')->url($storedBookPath);
             $update['pdf_mime_type'] = $bookFile->getClientMimeType();
             $update['file_size_bytes'] = $bookFile->getSize();
         } elseif (array_key_exists('book_file_url', $update) && $update['book_file_url']) {
@@ -343,7 +343,7 @@ class BookController extends Controller
 
         return [
             'path' => $value,
-            'url' => url(Storage::disk('public')->url($value)),
+            'url' => Storage::disk('public')->url($value),
         ];
     }
 

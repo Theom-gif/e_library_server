@@ -154,7 +154,7 @@ class BookController extends Controller
                     'user_id' => $author->id,
                     'book_file_path' => $storedBookPath,
                     'book_file_url' => $bookFile
-                        ? url(Storage::disk('public')->url($storedBookPath))
+                        ? Storage::disk('public')->url($storedBookPath)
                         : $bookFileUrl,
                     'cover_image_url' => $storedCover['url'] ?? $normalizedCover['url'] ?? $coverImageUrl,
                 ];
@@ -247,7 +247,7 @@ class BookController extends Controller
             }
 
             if (!empty($validated['pdf_path']) && empty($validated['book_file_url'])) {
-                $validated['book_file_url'] = url(Storage::disk('public')->url($validated['pdf_path']));
+                $validated['book_file_url'] = Storage::disk('public')->url($validated['pdf_path']);
             }
 
             if (!$coverFile && is_string($coverImageUrl) && $coverImageUrl !== '') {

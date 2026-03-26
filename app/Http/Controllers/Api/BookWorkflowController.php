@@ -730,7 +730,7 @@ class BookWorkflowController extends Controller
             return $value;
         }
 
-        return url(Storage::disk('public')->url($value));
+        return Storage::disk('public')->url($value);
     }
 
     private function resolveSearchKeyword(Request $request): string

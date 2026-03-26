@@ -149,7 +149,7 @@ class BookController extends Controller
 
         return [
             'path' => $value,
-            'url' => url(Storage::disk('public')->url($value)),
+            'url' => Storage::disk('public')->url($value),
         ];
     }
 

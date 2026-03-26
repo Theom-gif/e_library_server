@@ -22,7 +22,7 @@ class PublicImage
 
         Storage::disk('public')->putFileAs(trim($directory, '/'), $file, basename($path));
 
-        $url = url(Storage::disk('public')->url($path));
+        $url = Storage::disk('public')->url($path);
         $encryptedName = hash('sha256', $path);
         $extension = $file->getClientOriginalExtension() ?: $file->extension() ?: 'jpg';
         $serverUrl = env('IMAGE_SERVER_URL') ? rtrim(env('IMAGE_SERVER_URL'), '/').'/'.$encryptedName.'.'.$extension : null;
@@ -62,7 +62,7 @@ class PublicImage
         }
 
         if (Storage::disk('public')->exists($value)) {
-            $url = url(Storage::disk('public')->url($value));
+            $url = Storage::disk('public')->url($value);
             $extension = pathinfo($value, PATHINFO_EXTENSION) ?: 'jpg';
             $encryptedName = hash('sha256', $value);
             $serverUrl = env('IMAGE_SERVER_URL') ? rtrim(env('IMAGE_SERVER_URL'), '/').'/'.$encryptedName.'.'.$extension : null;
@@ -88,7 +88,7 @@ class PublicImage
 
         Storage::disk('public')->put($path, file_get_contents($localPath));
 
-        $url = url(Storage::disk('public')->url($path));
+        $url = Storage::disk('public')->url($path);
         $encryptedName = hash('sha256', $path);
         $serverUrl = env('IMAGE_SERVER_URL') ? rtrim(env('IMAGE_SERVER_URL'), '/').'/'.$encryptedName.'.'.$extension : null;
 
