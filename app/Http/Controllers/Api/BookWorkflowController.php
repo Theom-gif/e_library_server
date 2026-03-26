@@ -10,6 +10,7 @@ use App\Models\Category;
 use App\Models\OfflineDownload;
 use App\Models\User;
 use App\Support\PublicImage;
+use App\Services\NotificationService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -22,6 +23,9 @@ use Illuminate\Validation\ValidationException;
 
 class BookWorkflowController extends Controller
 {
+    public function __construct(private readonly NotificationService $notificationService)
+    {
+    }
     public function userBooks(Request $request): JsonResponse
     {
         $perPage = max(1, min((int) $request->query('per_page', 15), 100));
@@ -547,6 +551,10 @@ class BookWorkflowController extends Controller
 
         $this->notifyAuthorOfReview($book->fresh(['author']), $request->user());
 
+        if ($isApproved) {
+            $this->notificationService->notifyBookPublished($book->fresh(), $request->user());
+        }
+
         return response()->json([
             'success' => true,
             'message' => $isApproved ? 'Book approved successfully.' : 'Book rejected successfully.',
@@ -641,6 +649,7 @@ class BookWorkflowController extends Controller
             $rows[] = [
                 'user_id' => $adminId,
                 'created_by_user_id' => $author->id,
+                'role' => 'admin',
                 'type' => 'book.pending_approval',
                 'title' => 'New book submission pending approval',
                 'message' => $author->firstname.' '.$author->lastname.' submitted "'.$book->title.'".',
@@ -661,6 +670,7 @@ class BookWorkflowController extends Controller
         DB::table('user_notifications')->insert([
             'user_id' => $book->author_id,
             'created_by_user_id' => $admin->id,
+            'role' => 'author',
             'type' => $isApproved ? 'book.approved' : 'book.rejected',
             'title' => $isApproved ? 'Book approved' : 'Book rejected',
             'message' => $isApproved

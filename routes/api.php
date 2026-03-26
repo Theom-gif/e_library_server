@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\Admin\BookController as AdminBookController;
 use App\Http\Controllers\Api\Author\AuthorDashboardController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\AchievementController;
+use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\BookController;
@@ -85,9 +86,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/books/{book}/ratings', [ReaderReviewController::class, 'rate'])->name('api.books.ratings.store');
     Route::post('/books/{book}/rating', [ReaderReviewController::class, 'rate']);
 
+    Route::post('/reading/start', [ReadingSessionController::class, 'startReading']);
+    Route::post('/reading/finish', [ReadingSessionController::class, 'finishReading']);
+
     Route::get('/users/{user}/achievements', [AchievementController::class, 'userAchievements']);
     Route::post('/reading-logs', [AchievementController::class, 'storeReadingLog']);
     Route::post('/users/{user}/check-achievements', [AchievementController::class, 'checkAchievements']);
+
+    Route::get('/user/notifications', [NotificationController::class, 'userIndex']);
+    Route::post('/user/notifications/{id}/read', [NotificationController::class, 'markUserAsRead']);
 
     Route::get('/favorites', [ReaderFavoriteController::class, 'index']);
     Route::post('/favorites', [ReaderFavoriteController::class, 'store']);
@@ -132,6 +139,7 @@ Route::middleware(['auth:sanctum', 'role:author'])->prefix('author')->group(func
     Route::get('/dashboard/top-books', [AuthorDashboardController::class, 'topBooks']);
     Route::get('/dashboard/feedback', [AuthorDashboardController::class, 'feedback']);
     Route::get('/dashboard/demographics', [AuthorDashboardController::class, 'demographics']);
+    Route::get('/notifications', [NotificationController::class, 'authorIndex']);
 
     Route::get('/research', [BookWorkflowController::class, 'authorResearch']);
     Route::get('/search', [BookWorkflowController::class, 'authorResearch']);
@@ -158,6 +166,9 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(functi
 
     Route::get('/settings', [AdminSettingsController::class, 'show']);
     Route::match(['put', 'patch', 'post'], '/settings', [AdminSettingsController::class, 'changePassword']);
+
+    Route::get('/notifications', [NotificationController::class, 'adminIndex']);
+    Route::post('/notifications/send', [NotificationController::class, 'send']);
 
     Route::get('/categories', [AdminCategoryController::class, 'index']);
     Route::post('/categories', [AdminCategoryController::class, 'store']);

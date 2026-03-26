@@ -12,16 +12,20 @@ use App\Models\ReadingActivityDaily;
 use App\Models\ReadingProgress;
 use App\Models\ReadingSession;
 use App\Models\User;
+use App\Services\NotificationService;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
-use App\Models\Book;
 
 class ReadingSessionController extends Controller
 {
     private const HEARTBEAT_CAP_SECONDS = 120;
     private const SESSION_IDLE_SECONDS = 120;
+
+    public function __construct(private readonly NotificationService $notificationService)
+    {
+    }
 
     public function start(StartReadingSessionRequest $request): JsonResponse
     {
@@ -86,6 +90,8 @@ class ReadingSessionController extends Controller
             return $session;
         });
 
+        $this->notificationService->notifyReadingStart($user, $book);
+
         // Invalidate leaderboard cache for affected author (so new reader counts appear promptly)
         try {
             $this->clearLeaderboardCache($book->author_id ?? null);
@@ -101,6 +107,11 @@ class ReadingSessionController extends Controller
                 'started_at' => $session->started_at?->toIso8601String(),
             ],
         ], 201);
+    }
+
+    public function startReading(StartReadingSessionRequest $request): JsonResponse
+    {
+        return $this->start($request);
     }
 
     public function heartbeat(HeartbeatReadingSessionRequest $request, string $sessionId): JsonResponse
@@ -217,6 +228,9 @@ class ReadingSessionController extends Controller
             return $locked->refresh();
         });
 
+        $book = Book::query()->findOrFail($session->book_id);
+        $this->notificationService->notifyReadingFinish($request->user(), $book);
+
         // Invalidate leaderboard cache for affected author (reading finished)
         try {
             $book = Book::query()->find($session->book_id);
@@ -232,6 +246,20 @@ class ReadingSessionController extends Controller
                 'duration_seconds' => $session->duration_seconds,
             ],
         ]);
+    }
+
+    public function finishReading(FinishReadingSessionRequest $request): JsonResponse
+    {
+        $sessionId = (string) $request->input('session_id', '');
+
+        if (trim($sessionId) === '') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Session ID is required.',
+            ], 422);
+        }
+
+        return $this->finish($request, $sessionId);
     }
 
     public function activity(ReadingActivityIndexRequest $request): JsonResponse
