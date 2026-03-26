@@ -66,7 +66,7 @@ class UserSeeder extends Seeder
                 'lastname'  => 'Writer',
                 'email'     => 'author@example.com',
                 'password'  => 'author123',
-                'avatar'    => 'https://picsum.photos/seed/author-writer/300/300',
+                'avatar'    => 'C:\Users\Admin\Desktop\VC1-Backend\public\storage\books\covers\1U6dvCPuLOdUUFlnFVJqL0igH3sjAmVTTr3qyBVT.jpg',
                 'role_id'   => 2,
             ],
 
