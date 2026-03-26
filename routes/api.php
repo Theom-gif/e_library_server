@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\Admin\AdminUserController;
 use App\Http\Controllers\Api\Admin\BookController as AdminBookController;
 use App\Http\Controllers\Api\Author\AuthorDashboardController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\AchievementController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\BookController;
@@ -55,6 +56,7 @@ Route::get('/books/{book}', [BookWorkflowController::class, 'show'])->name('api.
 Route::get('/books/{book}/read', [BookWorkflowController::class, 'readPdf'])->name('api.books.read');
 Route::get('/books/{book}/cover', [BookWorkflowController::class, 'viewCover'])->name('api.books.cover');
 Route::post('/books/{book}/download', [BookWorkflowController::class, 'resolveDownload'])->name('api.books.download.resolve');
+Route::get('/achievements', [AchievementController::class, 'index']);
 
 // Legacy write aliases used by existing frontend clients.
 Route::post('/books', [BookController::class, 'store']);
@@ -82,6 +84,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/reviews/{id}/unlike', [ReaderReviewController::class, 'unlikeReview'])->name('api.reviews.unlike');
     Route::post('/books/{book}/ratings', [ReaderReviewController::class, 'rate'])->name('api.books.ratings.store');
     Route::post('/books/{book}/rating', [ReaderReviewController::class, 'rate']);
+
+    Route::get('/users/{user}/achievements', [AchievementController::class, 'userAchievements']);
+    Route::post('/reading-logs', [AchievementController::class, 'storeReadingLog']);
+    Route::post('/users/{user}/check-achievements', [AchievementController::class, 'checkAchievements']);
 
     Route::get('/favorites', [ReaderFavoriteController::class, 'index']);
     Route::post('/favorites', [ReaderFavoriteController::class, 'store']);
