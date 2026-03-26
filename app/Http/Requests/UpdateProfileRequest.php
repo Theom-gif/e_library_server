@@ -26,11 +26,12 @@ class UpdateProfileRequest extends FormRequest
             'lastname' => 'sometimes|string|max:255',
             'bio' => 'sometimes|nullable|string|max:1000',
             'facebook_url' => 'sometimes|nullable|url',
-            // `avatar` may be a URL/string or a file field from different frontends.
+            // Legacy string field or file field from different frontends.
             'avatar' => 'sometimes|nullable',
-            'avatar_file' => 'sometimes|nullable|image|max:5120',
-            // accept file under `avatar` as well (validation handled in controller)
+            'photo' => 'sometimes|nullable',
+            'avatar_file' => 'sometimes|nullable|file|max:5120',
             'avatar.*' => 'sometimes',
+            'photo.*' => 'sometimes',
         ];
     }
 

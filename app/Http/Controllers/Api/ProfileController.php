@@ -6,10 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\UpdateProfileRequest;
 use App\Http\Requests\ChangePasswordRequest;
 use App\Models\User;
+use App\Models\UserAvatar;
 use App\Support\PublicImage;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -45,31 +47,21 @@ class ProfileController extends Controller
             Log::info('updateProfile | avatar request', [
                 'has_avatar' => $request->hasFile('avatar'),
                 'has_avatar_file' => $request->hasFile('avatar_file'),
+                'has_photo' => $request->hasFile('photo'),
                 'method' => $request->method(),
             ]);
 
             $avatarFile = $this->extractAvatarFile($request);
 
             if ($avatarFile) {
-                $storedAvatar = $this->storeValidatedAvatar($avatarFile);
+                $upload = $this->storeValidatedAvatar($request->user(), $avatarFile);
 
-                if (!$storedAvatar) {
-                    return $this->errorResponse('Avatar upload failed', 'Please ensure the file is a valid image under 5MB.', 422);
+                if (!$upload['success']) {
+                    return $this->validationErrorResponse($upload['errors']);
                 }
 
-                $payload['avatar'] = $storedAvatar;
-                Log::info('updateProfile | stored local file', ['avatar' => $storedAvatar]);
-            } elseif ($request->filled('avatar')) {
-                $avatarInput = $request->input('avatar');
-
-                if (filter_var($avatarInput, FILTER_VALIDATE_URL)) {
-                    $normalized        = PublicImage::normalize($avatarInput, 'avatars');
-                    $payload['avatar'] = $normalized['url'] ?? $avatarInput;
-                } else {
-                    $payload['avatar'] = $avatarInput;
-                }
-
-                Log::info('updateProfile | using avatar URL/string', ['avatar' => $payload['avatar']]);
+                $payload['avatar'] = $this->buildAvatarUrl($request->user(), $upload['updated_at']);
+                Log::info('updateProfile | stored avatar in db', ['user_id' => $request->user()->id]);
             }
 
             Log::info('updateProfile | final payload', $payload);
@@ -121,13 +113,22 @@ class ProfileController extends Controller
         return response()->json(['success' => false, 'message' => $message, 'errors' => $errors], $code);
     }
 
+    private function validationErrorResponse(array $errors): JsonResponse
+    {
+        return $this->errorResponse('Validation error', $errors, 422);
+    }
+
     private function buildProfilePayload(User $user): array
     {
+        $user->loadMissing('avatarImage');
+
         $favoritesCount = DB::table('favorites')->where('user_id', $user->id)->count();
         $downloadsCount = DB::table('offline_downloads')->where('user_id', $user->id)->count();
         $booksReadCount = DB::table('reading_sessions')->where('user_id', $user->id)->where('duration_seconds', '>', 0)->distinct('book_id')->count('book_id');
         $totalReadingSeconds = (int) DB::table('reading_activity_daily')->where('user_id', $user->id)->sum('seconds_read');
         $readingDaysCount = DB::table('reading_activity_daily')->where('user_id', $user->id)->where('seconds_read', '>', 0)->count();
+
+        $photoUrl = $this->buildAvatarUrl($user, $user->avatarImage?->updated_at);
 
         $userData = [
             'id' => $user->id,
@@ -136,12 +137,15 @@ class ProfileController extends Controller
             'lastname' => $user->lastname,
             'first_name' => $user->firstname,
             'last_name' => $user->lastname,
+            'name' => trim(($user->firstname ?? '').' '.($user->lastname ?? '')),
             'full_name' => trim(($user->firstname ?? '').' '.($user->lastname ?? '')),
             'email' => $user->email,
             'bio' => $user->bio,
             'facebook_url' => $user->facebook_url,
             'avatar' => $user->avatar,
-            'avatar_url' => $this->resolveAvatarUrl($user->avatar),
+            'avatar_url' => $photoUrl,
+            'photo' => $photoUrl,
+            'photo_url' => $photoUrl,
             'created_at' => $user->created_at?->toIso8601String(),
             'updated_at' => $user->updated_at?->toIso8601String(),
             'member_since' => $user->created_at?->toDateString(),
@@ -168,7 +172,7 @@ class ProfileController extends Controller
             return null;
         }
 
-        return PublicImage::normalize($value, 'avatars')['url'] ?? null;
+        return PublicImage::normalize($value, 'avatars')['url'] ?? $value;
     }
 
     private function extractAvatarFile(Request $request): ?UploadedFile
@@ -179,13 +183,21 @@ class ProfileController extends Controller
             $file = $request->file('avatar');
         }
 
+        if (!$file instanceof UploadedFile) {
+            $file = $request->file('photo');
+        }
+
         return $file instanceof UploadedFile ? $file : null;
     }
 
-    private function storeValidatedAvatar(UploadedFile $file): ?string
+    private function storeValidatedAvatar(User $user, UploadedFile $file): array
     {
-        $validator = Validator::make(['avatar' => $file], [
-            'avatar' => 'required|image|max:5120',
+        $validator = Validator::make(['photo' => $file], [
+            'photo' => 'required|mimetypes:image/jpeg,image/png|max:5120',
+        ], [
+            'photo.required' => 'Only JPG/PNG up to 5MB',
+            'photo.mimetypes' => 'Only JPG/PNG up to 5MB',
+            'photo.max' => 'Only JPG/PNG up to 5MB',
         ]);
 
         if ($validator->fails()) {
@@ -193,21 +205,27 @@ class ProfileController extends Controller
                 'errors' => $validator->errors()->toArray(),
             ]);
 
-            return null;
+            return [
+                'success' => false,
+                'errors' => [
+                    'photo' => $validator->errors()->get('photo'),
+                ],
+            ];
         }
 
-        return $this->storeAvatarFile($file);
-    }
+        $avatar = $user->avatarImage()->updateOrCreate(
+            ['user_id' => $user->id],
+            [
+                'mime_type' => $file->getMimeType() ?: 'application/octet-stream',
+                'bytes' => file_get_contents($file->getRealPath()),
+                'hash' => hash_file('sha256', $file->getRealPath()),
+            ]
+        );
 
-    private function storeAvatarFile(UploadedFile $file): ?string
-    {
-        try {
-            $path = $file->store('avatars', 'public');
-            return $path;
-        } catch (\Exception $e) {
-            Log::error('storeAvatarFile error', ['error' => $e->getMessage()]);
-            return null;
-        }
+        return [
+            'success' => true,
+            'updated_at' => $avatar->updated_at,
+        ];
     }
 
     private function buildAvatarPayload(User $user): array
@@ -215,11 +233,29 @@ class ProfileController extends Controller
         $profile = $this->buildProfilePayload($user);
 
         return [
-            'avatar' => $user->avatar,
+            'photo' => $profile['user']['photo'],
+            'photo_url' => $profile['user']['photo_url'],
+            'avatar' => $profile['user']['avatar'],
             'avatar_url' => $profile['user']['avatar_url'],
             'user' => $profile['user'],
             'stats' => $profile['stats'],
         ];
+    }
+
+    private function buildAvatarUrl(User $user, $updatedAt = null): ?string
+    {
+        if (!$updatedAt && !$user->relationLoaded('avatarImage')) {
+            $user->loadMissing('avatarImage');
+            $updatedAt = $user->avatarImage?->updated_at;
+        }
+
+        if (!$updatedAt) {
+            return $this->resolveAvatarUrl($user->avatar);
+        }
+
+        $version = optional($updatedAt)->timestamp;
+
+        return route('avatars.show', ['userId' => $user->id, 'v' => $version], false);
     }
 
     public function uploadAvatar(Request $request): JsonResponse
@@ -231,14 +267,14 @@ class ProfileController extends Controller
                 return $this->errorResponse('No avatar file provided', null, 422);
             }
 
-            $path = $this->storeValidatedAvatar($file);
+            $upload = $this->storeValidatedAvatar($request->user(), $file);
 
-            if (!$path) {
-                return $this->errorResponse('Invalid avatar file', 'Please ensure the file is a valid image under 5MB.', 422);
+            if (!$upload['success']) {
+                return $this->validationErrorResponse($upload['errors']);
             }
 
             $user = $request->user();
-            $user->avatar = $path;
+            $user->avatar = $this->buildAvatarUrl($user, $upload['updated_at']);
             $user->save();
 
             return $this->successResponse($this->buildAvatarPayload($user->fresh()), 'Avatar uploaded successfully', 200);
@@ -247,6 +283,35 @@ class ProfileController extends Controller
             Log::error('uploadAvatar | Unexpected error', ['error' => $e->getMessage()]);
             return $this->errorResponse('Unexpected error', $e->getMessage(), 500);
         }
+    }
+
+    public function showAvatar(Request $request, int $userId): Response
+    {
+        $avatar = UserAvatar::query()
+            ->where('user_id', $userId)
+            ->first();
+
+        if (!$avatar) {
+            abort(404);
+        }
+
+        $bytes = $avatar->bytes;
+        $length = strlen($bytes);
+        $etag = '"'.$avatar->hash.'"';
+
+        if ($request->header('If-None-Match') === $etag) {
+            return response('', 304, [
+                'Cache-Control' => 'public, max-age=86400',
+                'ETag' => $etag,
+            ]);
+        }
+
+        return response($bytes, 200, [
+            'Content-Type' => $avatar->mime_type,
+            'Content-Length' => (string) $length,
+            'Cache-Control' => 'public, max-age=86400',
+            'ETag' => $etag,
+        ]);
     }
 
 }

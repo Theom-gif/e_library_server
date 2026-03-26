@@ -10,12 +10,13 @@
 **Relevant API Endpoints (authenticated)**
 - `GET /api/me` or `GET /api/me/profile` — returns current user profile payload via `ProfileController@getCurrentUser`.
 - `POST|PUT|PATCH /api/me/profile` — updates profile fields via `ProfileController@updateProfile`. Accepts JSON and also accepts file fields (`avatar` or `avatar_file`) if sent as multipart/form-data.
-- `POST /api/me/avatar` — new endpoint added for dedicated avatar uploads via `ProfileController@uploadAvatar`. Accepts multipart/form-data with `avatar` or `avatar_file` file field; returns `avatar` path and `avatar_url`.
+- `POST /api/me/avatar` — dedicated avatar upload via `ProfileController@uploadAvatar`. Accepts multipart/form-data with `avatar` or `photo` file field and stores image bytes in the database.
+- `GET /avatars/{userId}` — public avatar delivery endpoint that returns raw image bytes with the stored image content type.
 - `PATCH /api/auth/update-profile` — alternate update endpoint (exists in routes) — maps to same controller action.
 - `POST /api/auth/change-password` — change password via `ProfileController@changePassword` (fields: `current_password`, `new_password`).
 
 Notes:
-- The project normalizes avatar paths using `PublicImage::normalize`. The user model stores an `avatar` string (path or URL). The backend returns `avatar_url` in the profile payload.
+- The backend now serves avatars from the database through `/avatars/{userId}`. Profile payloads return `photo` and `photo_url` for direct use in `<img src="...">`.
 
 **Frontend Responsibilities**
 - Fetch profile on mount and populate fields using `GET /api/me`.
@@ -46,13 +47,13 @@ Notes:
 
   Endpoint: `POST /api/me/avatar`
   FormData keys:
-  - `avatar` (file) — image file (png/jpeg), max 5MB
+  - `avatar` or `photo` (file) — image file (jpeg/png), max 5MB
 
   Response (200):
   {
     "success": true,
     "message": "Avatar uploaded successfully",
-    "data": { "avatar": "avatars/abcd1234.jpg", "avatar_url": "https://.../storage/avatars/abcd1234.jpg" }
+    "data": { "photo": "/avatars/12?v=1710000000", "photo_url": "/avatars/12?v=1710000000" }
   }
 
 - Profile update with avatar in one request:
@@ -71,7 +72,7 @@ Notes:
 - Example avatar upload using `axios`:
 
   const formData = new FormData();
-  formData.append('avatar', file);
+  formData.append('photo', file);
   const res = await axios.post('/api/me/avatar', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   });

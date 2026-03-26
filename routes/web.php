@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\ProfileController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -16,3 +17,6 @@ Route::get('/health', function () {
         'timestamp' => now()->toIso8601String(),
     ]);
 });
+
+Route::get('/avatars/{userId}', [ProfileController::class, 'showAvatar'])->name('avatars.show');
+Route::get('/avatar/{userId}', [ProfileController::class, 'showAvatar']);

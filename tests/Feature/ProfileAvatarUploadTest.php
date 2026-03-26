@@ -6,7 +6,6 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -16,8 +15,6 @@ class ProfileAvatarUploadTest extends TestCase
 
     public function test_user_can_upload_avatar_via_dedicated_endpoint(): void
     {
-        Storage::fake('public');
-
         $user = $this->createAuthenticatedUser();
 
         $response = $this->post('/api/me/avatar', [
@@ -28,28 +25,27 @@ class ProfileAvatarUploadTest extends TestCase
             ->assertJsonPath('success', true)
             ->assertJsonPath('message', 'Avatar uploaded successfully');
 
-        $avatarPath = $response->json('data.avatar');
+        $photoUrl = $response->json('data.photo');
 
-        $this->assertIsString($avatarPath);
-        $this->assertStringStartsWith('avatars/', $avatarPath);
-        Storage::disk('public')->assertExists($avatarPath);
-
-        $this->assertSame($avatarPath, $user->fresh()->avatar);
-        $this->assertSame($avatarPath, $response->json('data.user.avatar'));
-        $this->assertNotEmpty($response->json('data.avatar_url'));
-        $this->assertSame($response->json('data.avatar_url'), $response->json('data.user.avatar_url'));
+        $this->assertIsString($photoUrl);
+        $this->assertStringStartsWith('/avatars/'.$user->id, $photoUrl);
+        $this->assertSame($photoUrl, $response->json('data.photo_url'));
+        $this->assertSame($photoUrl, $response->json('data.user.photo'));
+        $this->assertSame($photoUrl, $response->json('data.user.photo_url'));
+        $this->assertDatabaseHas('user_avatars', [
+            'user_id' => $user->id,
+            'mime_type' => 'image/jpeg',
+        ]);
     }
 
     public function test_user_can_update_profile_with_avatar_via_post_multipart(): void
     {
-        Storage::fake('public');
-
         $user = $this->createAuthenticatedUser();
 
         $response = $this->post('/api/me/profile', [
             'firstname' => 'Updated',
             'lastname' => 'Reader',
-            'avatar' => UploadedFile::fake()->image('profile.png'),
+            'photo' => UploadedFile::fake()->image('profile.png'),
         ]);
 
         $response->assertOk()
@@ -58,16 +54,34 @@ class ProfileAvatarUploadTest extends TestCase
             ->assertJsonPath('data.user.firstname', 'Updated')
             ->assertJsonPath('data.user.lastname', 'Reader');
 
-        $avatarPath = $response->json('data.user.avatar');
+        $photoUrl = $response->json('data.user.photo');
 
-        $this->assertIsString($avatarPath);
-        $this->assertStringStartsWith('avatars/', $avatarPath);
-        Storage::disk('public')->assertExists($avatarPath);
+        $this->assertIsString($photoUrl);
+        $this->assertStringStartsWith('/avatars/'.$user->id, $photoUrl);
 
         $freshUser = $user->fresh();
         $this->assertSame('Updated', $freshUser->firstname);
         $this->assertSame('Reader', $freshUser->lastname);
-        $this->assertSame($avatarPath, $freshUser->avatar);
+        $this->assertSame($photoUrl, $freshUser->avatar);
+        $this->assertDatabaseHas('user_avatars', [
+            'user_id' => $user->id,
+            'mime_type' => 'image/png',
+        ]);
+    }
+
+    public function test_avatar_binary_endpoint_returns_image_bytes(): void
+    {
+        $user = $this->createAuthenticatedUser();
+
+        $this->post('/api/me/avatar', [
+            'photo' => UploadedFile::fake()->image('avatar.png'),
+        ])->assertOk();
+
+        $response = $this->get('/avatars/'.$user->id);
+
+        $response->assertOk();
+        $response->assertHeader('Content-Type', 'image/png');
+        $response->assertHeader('Cache-Control', 'public, max-age=86400');
     }
 
     private function createAuthenticatedUser(): User
