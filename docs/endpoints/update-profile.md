@@ -9,7 +9,7 @@
 
 **Relevant API Endpoints (authenticated)**
 - `GET /api/me` or `GET /api/me/profile` — returns current user profile payload via `ProfileController@getCurrentUser`.
-- `PUT|PATCH /api/me/profile` — updates profile fields via `ProfileController@updateProfile`. Accepts JSON and also accepts file fields (`avatar` or `avatar_file`) if sent as multipart/form-data.
+- `POST|PUT|PATCH /api/me/profile` — updates profile fields via `ProfileController@updateProfile`. Accepts JSON and also accepts file fields (`avatar` or `avatar_file`) if sent as multipart/form-data.
 - `POST /api/me/avatar` — new endpoint added for dedicated avatar uploads via `ProfileController@uploadAvatar`. Accepts multipart/form-data with `avatar` or `avatar_file` file field; returns `avatar` path and `avatar_url`.
 - `PATCH /api/auth/update-profile` — alternate update endpoint (exists in routes) — maps to same controller action.
 - `POST /api/auth/change-password` — change password via `ProfileController@changePassword` (fields: `current_password`, `new_password`).
@@ -27,7 +27,8 @@ Notes:
 - Atomic flow (recommended):
   1. Upload selected avatar first to `POST /api/me/avatar` using `FormData`.
   2. Receive `avatar` path/`avatar_url` and include `avatar` value in the subsequent `PUT /api/me/profile` JSON payload (or rely on the single avatar route to persist it).
-- Single-request flow: submit the profile update as multipart/form-data to `PUT /api/me/profile` including the file under `avatar` or `avatar_file`.
+- Single-request flow: submit the profile update as multipart/form-data to `POST /api/me/profile` including the file under `avatar` or `avatar_file`.
+- Recommended compatibility note: use `POST /api/me/profile` for file uploads. Many frontend stacks and PHP servers are less reliable with multipart file uploads sent as raw `PUT/PATCH`.
 
 **Request Examples**
 - JSON profile update (no file):
@@ -55,7 +56,7 @@ Notes:
   }
 
 - Profile update with avatar in one request:
-  - send `PUT /api/me/profile` with `multipart/form-data` containing `avatar` file and text fields.
+  - send `POST /api/me/profile` with `multipart/form-data` containing `avatar` file and text fields.
 
 - Change password:
   Endpoint: `POST /api/auth/change-password`

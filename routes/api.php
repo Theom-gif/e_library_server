@@ -98,7 +98,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('me')->group(function () {
         Route::get('/', [ProfileController::class, 'getCurrentUser']);
         Route::get('/profile', [ProfileController::class, 'getCurrentUser']);
-        Route::match(['patch', 'put'], '/profile', [ProfileController::class, 'updateProfile']);
+        Route::match(['post', 'patch', 'put'], '/profile', [ProfileController::class, 'updateProfile']);
         Route::post('/avatar', [ProfileController::class, 'uploadAvatar']);
         Route::get('/reading-activity', [ReadingSessionController::class, 'activity']);
     });
@@ -106,7 +106,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('auth')->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::get('/me', [ProfileController::class, 'getCurrentUser']);
-        Route::patch('/update-profile', [ProfileController::class, 'updateProfile']);
+        Route::match(['post', 'patch'], '/update-profile', [ProfileController::class, 'updateProfile']);
         Route::post('/change-password', [ProfileController::class, 'changePassword']);
 
         Route::middleware('role:author,admin')->group(function () {

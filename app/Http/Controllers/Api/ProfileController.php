@@ -7,11 +7,13 @@ use App\Http\Requests\UpdateProfileRequest;
 use App\Http\Requests\ChangePasswordRequest;
 use App\Models\User;
 use App\Support\PublicImage;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
 
 class ProfileController extends Controller
 {
@@ -40,22 +42,23 @@ class ProfileController extends Controller
             }
 
             Log::info('updateProfile | text payload', $payload);
-            Log::info('updateProfile | has avatar_file', ['has' => $request->hasFile('avatar_file')]);
+            Log::info('updateProfile | avatar request', [
+                'has_avatar' => $request->hasFile('avatar'),
+                'has_avatar_file' => $request->hasFile('avatar_file'),
+                'method' => $request->method(),
+            ]);
 
-            // Accept file uploads under either `avatar_file` or `avatar` (some frontends send `avatar` as file)
-            if ($request->hasFile('avatar_file') || $request->hasFile('avatar')) {
-                $fileField = $request->hasFile('avatar_file') ? 'avatar_file' : 'avatar';
-                $file = $request->file($fileField);
+            $avatarFile = $this->extractAvatarFile($request);
 
-                $encrypted = $this->storeAvatarFile($file);
+            if ($avatarFile) {
+                $storedAvatar = $this->storeValidatedAvatar($avatarFile);
 
-                if (!$encrypted) {
+                if (!$storedAvatar) {
                     return $this->errorResponse('Avatar upload failed', 'Please ensure the file is a valid image under 5MB.', 422);
                 }
 
-                $payload['avatar'] = $encrypted;
-                Log::info('updateProfile | stored local file', ['field' => $fileField, 'avatar' => $encrypted]);
-
+                $payload['avatar'] = $storedAvatar;
+                Log::info('updateProfile | stored local file', ['avatar' => $storedAvatar]);
             } elseif ($request->filled('avatar')) {
                 $avatarInput = $request->input('avatar');
 
@@ -168,7 +171,35 @@ class ProfileController extends Controller
         return PublicImage::normalize($value, 'avatars')['url'] ?? null;
     }
 
-    private function storeAvatarFile($file): ?string
+    private function extractAvatarFile(Request $request): ?UploadedFile
+    {
+        $file = $request->file('avatar_file');
+
+        if (!$file instanceof UploadedFile) {
+            $file = $request->file('avatar');
+        }
+
+        return $file instanceof UploadedFile ? $file : null;
+    }
+
+    private function storeValidatedAvatar(UploadedFile $file): ?string
+    {
+        $validator = Validator::make(['avatar' => $file], [
+            'avatar' => 'required|image|max:5120',
+        ]);
+
+        if ($validator->fails()) {
+            Log::warning('storeValidatedAvatar | validation failed', [
+                'errors' => $validator->errors()->toArray(),
+            ]);
+
+            return null;
+        }
+
+        return $this->storeAvatarFile($file);
+    }
+
+    private function storeAvatarFile(UploadedFile $file): ?string
     {
         try {
             $path = $file->store('avatars', 'public');
@@ -179,36 +210,38 @@ class ProfileController extends Controller
         }
     }
 
+    private function buildAvatarPayload(User $user): array
+    {
+        $profile = $this->buildProfilePayload($user);
+
+        return [
+            'avatar' => $user->avatar,
+            'avatar_url' => $profile['user']['avatar_url'],
+            'user' => $profile['user'],
+            'stats' => $profile['stats'],
+        ];
+    }
+
     public function uploadAvatar(Request $request): JsonResponse
     {
         try {
-            if (!$request->hasFile('avatar') && !$request->hasFile('avatar_file')) {
+            $file = $this->extractAvatarFile($request);
+
+            if (!$file) {
                 return $this->errorResponse('No avatar file provided', null, 422);
             }
 
-            $fileField = $request->hasFile('avatar') ? 'avatar' : 'avatar_file';
-            $file = $request->file($fileField);
-
-            // Basic validation: image and max 5MB
-            $validator = \Validator::make([$fileField => $file], [
-                $fileField => 'required|image|max:5120',
-            ]);
-
-            if ($validator->fails()) {
-                return $this->errorResponse('Invalid avatar file', $validator->errors(), 422);
-            }
-
-            $path = $this->storeAvatarFile($file);
+            $path = $this->storeValidatedAvatar($file);
 
             if (!$path) {
-                return $this->errorResponse('Avatar upload failed', null, 500);
+                return $this->errorResponse('Invalid avatar file', 'Please ensure the file is a valid image under 5MB.', 422);
             }
 
             $user = $request->user();
             $user->avatar = $path;
             $user->save();
 
-            return $this->successResponse(['avatar' => $user->avatar, 'avatar_url' => $this->resolveAvatarUrl($user->avatar)], 'Avatar uploaded successfully', 200);
+            return $this->successResponse($this->buildAvatarPayload($user->fresh()), 'Avatar uploaded successfully', 200);
 
         } catch (\Exception $e) {
             Log::error('uploadAvatar | Unexpected error', ['error' => $e->getMessage()]);
