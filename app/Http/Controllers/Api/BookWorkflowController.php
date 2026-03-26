@@ -410,26 +410,28 @@ class BookWorkflowController extends Controller
             ], 404);
         }
 
-        if ($book->cover_image_path && Storage::disk('public')->exists($book->cover_image_path)) {
+        $cover = $this->resolveCoverAsset($book->cover_image_path ?: $book->cover_image_url);
+
+        if ($cover['path'] && Storage::disk('public')->exists($cover['path'])) {
             return response()->file(
-                Storage::disk('public')->path($book->cover_image_path),
+                Storage::disk('public')->path($cover['path']),
                 [
-                    'Content-Type' => Storage::disk('public')->mimeType($book->cover_image_path) ?: 'application/octet-stream',
-                    'Content-Disposition' => 'inline; filename="'.basename($book->cover_image_path).'"',
+                    'Content-Type' => Storage::disk('public')->mimeType($cover['path']) ?: 'application/octet-stream',
+                    'Content-Disposition' => 'inline; filename="'.basename($cover['path']).'"',
                 ]
             );
         }
 
-        if (is_string($book->cover_image_url) && preg_match('/^https?:/i', $book->cover_image_url)) {
+        if ($cover['url'] && preg_match('/^https?:/i', $cover['url'])) {
             return response()->json([
                 'success' => true,
                 'data' => [
-                    'cover_url' => $book->cover_image_url,
+                    'cover_url' => $cover['url'],
                 ],
             ]);
         }
 
-        if (is_string($book->cover_image_url) && preg_match('/^data:/i', $book->cover_image_url)) {
+        if ($cover['url'] && preg_match('/^data:/i', $cover['url'])) {
             return response()->json([
                 'success' => false,
                 'message' => 'Embedded cover images are not supported by this endpoint.',
@@ -677,7 +679,7 @@ class BookWorkflowController extends Controller
     private function transformBook(Book $book): array
     {
         $publicPdfUrl = $this->resolveStoredAssetUrl($book->pdf_path) ?: $book->book_file_url;
-        $publicCoverUrl = $this->resolveStoredAssetUrl($book->cover_image_path) ?: $book->cover_image_url;
+        $cover = $this->resolveCoverAsset($book->cover_image_path ?: $book->cover_image_url);
 
         return [
             'id' => $book->id,
@@ -708,15 +710,36 @@ class BookWorkflowController extends Controller
             'cover_image_path' => $book->cover_image_path,
             'original_cover_name' => $book->original_cover_name,
             'cover_mime_type' => $book->cover_mime_type,
-            'cover_image_url' => $publicCoverUrl,
-            'cover_view_url' => $publicCoverUrl,
+            'cover_image_url' => $cover['url'],
+            'cover_view_url' => $cover['url'],
             'cover_api_url' => route('api.books.cover', ['book' => $book->id]),
-            'cover_url' => $publicCoverUrl,
-            'cover' => $publicCoverUrl,
-            'poster' => $publicCoverUrl,
+            'cover_url' => $cover['url'],
+            'cover' => $cover['url'],
+            'poster' => $cover['url'],
             'created_at' => $book->created_at,
             'updated_at' => $book->updated_at,
         ];
+    }
+
+    private function resolveCoverAsset(?string $pathOrUrl): array
+    {
+        $value = trim((string) $pathOrUrl);
+        if ($value === '') {
+            return ['path' => null, 'url' => null];
+        }
+
+        if ($this->isAbsoluteUrl($value)) {
+            return ['path' => null, 'url' => $value];
+        }
+
+        if (Storage::disk('public')->exists($value)) {
+            return [
+                'path' => $value,
+                'url' => Storage::disk('public')->url($value),
+            ];
+        }
+
+        return ['path' => null, 'url' => null];
     }
 
     private function resolveStoredAssetUrl(?string $path): ?string

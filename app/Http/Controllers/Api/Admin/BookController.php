@@ -86,8 +86,8 @@ class BookController extends Controller
         $categoryName = $book->category
             ?: $book->category?->name;
 
-        $cover = $this->resolveAsset($book->cover_image_path ?: $book->cover_image_url);
-        $file = $this->resolveAsset($book->book_file_path ?: $book->pdf_path ?: $book->book_file_url);
+        $cover = $this->resolveCoverAsset($book->cover_image_path ?: $book->cover_image_url);
+        $file = $this->resolveFileAsset($book->book_file_path ?: $book->pdf_path ?: $book->book_file_url);
 
         $dateSource = $book->published_at ?? $book->approved_at ?? $book->created_at;
 
@@ -136,7 +136,7 @@ class BookController extends Controller
         return ucfirst($value);
     }
 
-    private function resolveAsset(?string $pathOrUrl): array
+    private function resolveCoverAsset(?string $pathOrUrl): array
     {
         $value = trim((string) $pathOrUrl);
         if ($value === '') {
@@ -147,10 +147,35 @@ class BookController extends Controller
             return ['path' => null, 'url' => $value];
         }
 
-        return [
-            'path' => $value,
-            'url' => Storage::disk('public')->url($value),
-        ];
+        if (Storage::disk('public')->exists($value)) {
+            return [
+                'path' => $value,
+                'url' => Storage::disk('public')->url($value),
+            ];
+        }
+
+        return ['path' => null, 'url' => null];
+    }
+
+    private function resolveFileAsset(?string $pathOrUrl): array
+    {
+        $value = trim((string) $pathOrUrl);
+        if ($value === '') {
+            return ['path' => null, 'url' => null];
+        }
+
+        if ($this->isAbsoluteUrl($value)) {
+            return ['path' => null, 'url' => $value];
+        }
+
+        if (Storage::disk('public')->exists($value)) {
+            return [
+                'path' => $value,
+                'url' => Storage::disk('public')->url($value),
+            ];
+        }
+
+        return ['path' => null, 'url' => null];
     }
 
     private function isAbsoluteUrl(string $value): bool
