@@ -60,7 +60,7 @@ class BookSeeder extends Seeder
                 'slug' => 'letters-between-monsoons',
                 'category_slug' => 'romance',
                 'description' => 'Two strangers keep finding each other through letters that arrive years too late.',
-                'cover_image_url' => 'books/covers/S6WrSw858FNFMkfHtMDsBa9DQkeycUiTOOcPrQpn.jpg',
+                'cover_image_url' => 'C:\Users\Admin\Desktop\VC1-Backend\storage\app\public\avatars\0iMJusoENwoMgaF6BSopkuip9hE5TUIMiyIlo1yF.jpg',
             ],
         ];
 
