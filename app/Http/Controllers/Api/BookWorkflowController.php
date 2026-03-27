@@ -742,11 +742,19 @@ class BookWorkflowController extends Controller
             return ['path' => null, 'url' => $value];
         }
 
-        if (Storage::disk('public')->exists($value)) {
-            return [
-                'path' => $value,
-                'url' => Storage::disk('public')->url($value),
-            ];
+        if ($this->isAbsoluteFilePath($value)) {
+            return ['path' => null, 'url' => null];
+        }
+
+        try {
+            if (Storage::disk('public')->exists($value)) {
+                return [
+                    'path' => $value,
+                    'url' => Storage::disk('public')->url($value),
+                ];
+            }
+        } catch (\Throwable) {
+            return ['path' => null, 'url' => null];
         }
 
         return ['path' => null, 'url' => null];
@@ -759,11 +767,19 @@ class BookWorkflowController extends Controller
             return null;
         }
 
-        if (preg_match('/^(https?:|data:)/i', $value)) {
+        if ($this->isAbsoluteUrl($value)) {
             return $value;
         }
 
-        return Storage::disk('public')->url($value);
+        if ($this->isAbsoluteFilePath($value)) {
+            return null;
+        }
+
+        try {
+            return Storage::disk('public')->url($value);
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     private function resolveSearchKeyword(Request $request): string
@@ -893,7 +909,7 @@ class BookWorkflowController extends Controller
     {
         foreach ([$book->pdf_path, $book->book_file_path] as $candidate) {
             $value = trim((string) $candidate);
-            if ($value !== '' && !preg_match('/^(https?:|data:)/i', $value)) {
+            if ($value !== '' && !$this->isAbsoluteUrl($value) && !$this->isAbsoluteFilePath($value)) {
                 return $value;
             }
         }
@@ -925,7 +941,7 @@ class BookWorkflowController extends Controller
     {
         foreach ([$book->book_file_url, $book->pdf_path, $book->book_file_path] as $candidate) {
             $value = trim((string) $candidate);
-            if ($value !== '' && preg_match('/^https?:/i', $value)) {
+            if ($value !== '' && $this->isAbsoluteUrl($value)) {
                 return $value;
             }
         }
@@ -943,5 +959,15 @@ class BookWorkflowController extends Controller
             'created_at' => $book->created_at,
             'updated_at' => $book->updated_at,
         ];
+    }
+
+    private function isAbsoluteUrl(string $value): bool
+    {
+        return (bool) preg_match('/^(https?:|data:)/i', $value);
+    }
+
+    private function isAbsoluteFilePath(string $value): bool
+    {
+        return (bool) preg_match('/^(?:[A-Za-z]:[\\\\\\/]|\\\\\\\\)/', $value);
     }
 }

@@ -3,10 +3,10 @@
 namespace Database\Seeders;
 
 use App\Models\Book;
+use App\Models\Category;
 use App\Models\User;
 use App\Support\PublicImage;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class BookSeeder extends Seeder
@@ -25,14 +25,13 @@ class BookSeeder extends Seeder
     {
         $author = User::query()
             ->where('email', 'author@example.com')
-            ->first();
+            ->first()
+            ?? User::query()->where('role_id', 2)->first()
+            ?? User::query()->first();
 
         if (!$author) {
             return;
         }
-
-        $categories = DB::table('categories')
-            ->pluck('id', 'slug');
 
         $books = [
             [
@@ -66,6 +65,10 @@ class BookSeeder extends Seeder
         ];
 
         foreach ($books as $book) {
+            $categoryId = $this->resolveCategoryId(
+                $book['category_slug'],
+                Str::headline($book['category_slug'])
+            );
             $normalized = PublicImage::normalize($book['cover_image_url'] ?? null, 'books/covers') ?? [];
             $coverUrl = $normalized['url'] ?? null;
             $coverPath = $normalized['path'] ?? null;
@@ -73,7 +76,7 @@ class BookSeeder extends Seeder
             $payload = [
                 'title' => $book['title'],
                 'slug' => $book['slug'],
-                'category_id' => $categories[$book['category_slug']] ?? null,
+                'category_id' => $categoryId,
                 'user_id' => $author->id,
                 'author_id' => $author->id,
                 'author_name' => trim($author->firstname.' '.$author->lastname),
@@ -99,5 +102,21 @@ class BookSeeder extends Seeder
 
             Book::persistCompatible($payload);
         }
+    }
+
+    private function resolveCategoryId(string $slug, string $name): ?int
+    {
+        $existing = Category::query()->where('slug', $slug)->first();
+        if ($existing) {
+            return (int) $existing->id;
+        }
+
+        $category = Category::create([
+            'name' => $name,
+            'slug' => $slug,
+            'is_active' => true,
+        ]);
+
+        return (int) $category->id;
     }
 }

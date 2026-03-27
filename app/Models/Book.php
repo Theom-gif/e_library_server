@@ -177,7 +177,20 @@ class Book extends Model
 
     private function resolveAssetUrl(?string $pathOrUrl): ?string
     {
-        return PublicImage::normalize($pathOrUrl, 'books/covers')['url'] ?? null;
+        $value = trim((string) $pathOrUrl);
+        if ($value === '') {
+            return null;
+        }
+
+        if (preg_match('/^(https?:|data:)/i', $value)) {
+            return $value;
+        }
+
+        if (preg_match('/^(?:[A-Za-z]:[\\\\\\/]|\\\\\\\\)/', $value)) {
+            return null;
+        }
+
+        return PublicImage::normalize($value, 'books/covers')['url'] ?? null;
     }
 
     public function category()
