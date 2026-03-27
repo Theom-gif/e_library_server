@@ -14,6 +14,7 @@ use App\Services\NotificationService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -276,6 +277,8 @@ class BookWorkflowController extends Controller
                 'status' => 'pending',
             ]);
 
+            $book->syncCoverBlob($coverFile);
+
             $this->notifyAdminsOfSubmission($book, $user);
         } catch (\Throwable $e) {
             Storage::disk('public')->delete($pdfPath);
@@ -405,13 +408,34 @@ class BookWorkflowController extends Controller
         ], 404);
     }
 
-    public function viewCover(Request $request, Book $book): BinaryFileResponse|JsonResponse
+    public function viewCover(Request $request, Book $book): Response|BinaryFileResponse|JsonResponse
     {
         if (!$this->canViewBook($request->user(), $book)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Book not found.',
             ], 404);
+        }
+
+        $book->loadMissing('coverImage');
+        $coverImage = $book->coverImage;
+
+        if ($coverImage) {
+            $etag = '"'.$coverImage->hash.'"';
+
+            if ($request->header('If-None-Match') === $etag) {
+                return response('', 304, [
+                    'Cache-Control' => 'public, max-age=86400',
+                    'ETag' => $etag,
+                ]);
+            }
+
+            return response($coverImage->bytes, 200, [
+                'Content-Type' => $coverImage->mime_type,
+                'Content-Length' => (string) strlen($coverImage->bytes),
+                'Cache-Control' => 'public, max-age=86400',
+                'ETag' => $etag,
+            ]);
         }
 
         $cover = $this->resolveCoverAsset($book->cover_image_path ?: $book->cover_image_url);

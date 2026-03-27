@@ -159,7 +159,10 @@ class BookController extends Controller
                     'cover_image_url' => $storedCover['url'] ?? $normalizedCover['url'] ?? $coverImageUrl,
                 ];
 
-                return Book::persistCompatible($payload);
+                $book = Book::persistCompatible($payload);
+                $book->syncCoverBlob($coverFile);
+
+                return $book;
             });
 
             $bookArray = $book->toApiArray();
@@ -315,6 +318,9 @@ class BookController extends Controller
             );
 
             $book->update(Book::compatibleAttributes($validated));
+            if ($coverFile) {
+                $book->syncCoverBlob($coverFile);
+            }
             $book->refresh();
 
             return $this->successResponse($book->toApiArray(), 'Book updated successfully', 200);

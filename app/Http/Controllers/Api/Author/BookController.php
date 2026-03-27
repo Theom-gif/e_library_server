@@ -126,7 +126,10 @@ class BookController extends Controller
                 $payload['cover_image_url'] = $normalizedCover['url'] ?? $coverUrl;
             }
 
-            return Book::persistCompatible($payload);
+            $book = Book::persistCompatible($payload);
+            $book->syncCoverBlob($coverFile);
+
+            return $book;
         });
 
         return response()->json($this->transformBook(
@@ -200,6 +203,9 @@ class BookController extends Controller
         unset($update['first_publish_year'], $update['authorName']);
 
         $book->update(Book::compatibleAttributes($update));
+        if ($coverFile) {
+            $book->syncCoverBlob($coverFile);
+        }
 
         return response()->json($this->transformBook(
             $book->fresh(['category']),

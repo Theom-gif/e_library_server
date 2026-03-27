@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Support\PublicImage;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Schema;
@@ -87,7 +88,13 @@ class Book extends Model
             $attributes['bookFileUrl']
         );
 
-        return self::persistCompatible($attributes);
+        $book = self::persistCompatible($attributes);
+
+        if ($coverImage) {
+            $book->syncCoverBlob($coverImage);
+        }
+
+        return $book;
     }
 
     /**
@@ -206,5 +213,26 @@ class Book extends Model
     public function approver()
     {
         return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function coverImage(): HasOne
+    {
+        return $this->hasOne(BookCover::class);
+    }
+
+    public function syncCoverBlob(?UploadedFile $coverImage): ?BookCover
+    {
+        if (!$coverImage || !$this->exists) {
+            return null;
+        }
+
+        return $this->coverImage()->updateOrCreate(
+            ['book_id' => $this->id],
+            [
+                'mime_type' => $coverImage->getClientMimeType() ?: 'application/octet-stream',
+                'bytes' => file_get_contents($coverImage->getRealPath()),
+                'hash' => hash_file('sha256', $coverImage->getRealPath()),
+            ]
+        );
     }
 }
