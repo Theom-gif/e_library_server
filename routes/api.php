@@ -83,6 +83,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/reviews/{id}', [ReaderReviewController::class, 'deleteReview'])->name('api.reviews.destroy');
     Route::post('/reviews/{id}/like', [ReaderReviewController::class, 'likeReview'])->name('api.reviews.like');
     Route::post('/reviews/{id}/unlike', [ReaderReviewController::class, 'unlikeReview'])->name('api.reviews.unlike');
+    Route::get('/books/{book}/analytics', [AuthorBookController::class, 'analytics'])->name('api.books.analytics');
     Route::post('/books/{book}/ratings', [ReaderReviewController::class, 'rate'])->name('api.books.ratings.store');
     Route::post('/books/{book}/rating', [ReaderReviewController::class, 'rate']);
 

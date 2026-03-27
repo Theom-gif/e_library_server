@@ -7,6 +7,7 @@ use App\Http\Requests\author\StoreBookRequest;
 use App\Http\Requests\author\UpdateBookRequest;
 use App\Models\Book;
 use App\Models\Category;
+use App\Services\BookAnalyticsService;
 use App\Support\PublicImage;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -30,8 +31,12 @@ class BookController extends Controller
             ->latest('id')
             ->get();
 
+        $analyticsByBookId = app(BookAnalyticsService::class)->forBooks($books->all());
+
         return response()->json([
-            'data' => $books->map(fn (Book $book) => $this->transformBook($book))->values(),
+            'data' => $books->map(function (Book $book) use ($analyticsByBookId) {
+                return $this->transformBook($book, $analyticsByBookId[$book->id] ?? null);
+            })->values(),
         ]);
     }
 
@@ -43,7 +48,23 @@ class BookController extends Controller
             ], 404);
         }
 
-        return response()->json($this->transformBook($book->load(['category'])));
+        return response()->json($this->transformBook(
+            $book->load(['category']),
+            app(BookAnalyticsService::class)->forBook($book)
+        ));
+    }
+
+    public function analytics(Request $request, Book $book, BookAnalyticsService $analyticsService): JsonResponse
+    {
+        if (!$this->canAccess($request->user(), $book)) {
+            return response()->json([
+                'message' => 'Book not found.',
+            ], 404);
+        }
+
+        return response()->json(
+            $analyticsService->forBook($book)
+        );
     }
 
     public function store(StoreBookRequest $request): JsonResponse
@@ -108,7 +129,10 @@ class BookController extends Controller
             return Book::persistCompatible($payload);
         });
 
-        return response()->json($this->transformBook($book->fresh(['category'])), 201);
+        return response()->json($this->transformBook(
+            $book->fresh(['category']),
+            app(BookAnalyticsService::class)->forBook($book)
+        ), 201);
     }
 
     public function update(UpdateBookRequest $request, Book $book): JsonResponse
@@ -177,7 +201,10 @@ class BookController extends Controller
 
         $book->update(Book::compatibleAttributes($update));
 
-        return response()->json($this->transformBook($book->fresh(['category'])));
+        return response()->json($this->transformBook(
+            $book->fresh(['category']),
+            app(BookAnalyticsService::class)->forBook($book)
+        ));
     }
 
     public function destroy(Request $request, Book $book): JsonResponse
@@ -299,7 +326,7 @@ class BookController extends Controller
             || (int) $book->user_id === (int) $user->id;
     }
 
-    private function transformBook(Book $book): array
+    private function transformBook(Book $book, ?array $analytics = null): array
     {
         $authorName = $book->author_name
             ?: $book->author
@@ -323,6 +350,9 @@ class BookController extends Controller
             'cover_image_path' => $cover['path'],
             'book_file_url' => $file['url'],
             'book_file_path' => $file['path'],
+            'totalReaders' => (int) ($analytics['totalReaders'] ?? 0),
+            'completionRate' => (float) ($analytics['completionRate'] ?? 0),
+            'monthlyReads' => (int) ($analytics['monthlyReads'] ?? 0),
             'description' => $book->description,
             'first_publish_year' => $book->published_year ?? null,
             'manuscript_type' => $book->pdf_mime_type ?? null,
