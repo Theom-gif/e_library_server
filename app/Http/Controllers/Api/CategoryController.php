@@ -25,7 +25,13 @@ class CategoryController extends Controller
             ]);
         }
 
-        $query = Category::query()->orderBy('name');
+        $query = Category::query()
+            ->withCount([
+                'books as books_count' => function ($bookQuery) {
+                    $bookQuery->where('status', 'approved');
+                },
+            ])
+            ->orderBy('name');
 
         if ($request->query('active_only', '1') !== '0') {
             $query->where('is_active', true);
@@ -34,7 +40,7 @@ class CategoryController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Categories retrieved successfully',
-            'data' => $query->get(),
+            'data' => $query->get()->map(fn (Category $category) => $this->transform($category)),
         ]);
     }
 
@@ -63,10 +69,16 @@ class CategoryController extends Controller
             'is_active' => $validated['is_active'] ?? true,
         ]);
 
+        $category->loadCount([
+            'books as books_count' => function ($bookQuery) {
+                $bookQuery->where('status', 'approved');
+            },
+        ]);
+
         return response()->json([
             'success' => true,
             'message' => 'Category created successfully',
-            'data' => $category,
+            'data' => $this->transform($category),
         ], 201);
     }
 
@@ -84,10 +96,16 @@ class CategoryController extends Controller
             ], 404);
         }
 
+        $category->loadCount([
+            'books as books_count' => function ($bookQuery) {
+                $bookQuery->where('status', 'approved');
+            },
+        ]);
+
         return response()->json([
             'success' => true,
             'message' => 'Category retrieved successfully',
-            'data' => $category,
+            'data' => $this->transform($category),
         ]);
     }
 
@@ -129,10 +147,17 @@ class CategoryController extends Controller
 
         $category->update($validated);
 
+        $category = $category->fresh();
+        $category->loadCount([
+            'books as books_count' => function ($bookQuery) {
+                $bookQuery->where('status', 'approved');
+            },
+        ]);
+
         return response()->json([
             'success' => true,
             'message' => 'Category updated successfully',
-            'data' => $category->fresh(),
+            'data' => $this->transform($category),
         ]);
     }
 
@@ -179,5 +204,21 @@ class CategoryController extends Controller
         }
 
         return $candidate;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function transform(Category $category): array
+    {
+        return [
+            'id' => $category->id,
+            'name' => $category->name,
+            'slug' => $category->slug,
+            'description' => $category->description,
+            'is_active' => (bool) $category->is_active,
+            'count' => (int) ($category->books_count ?? 0),
+            'books_count' => (int) ($category->books_count ?? 0),
+        ];
     }
 }
