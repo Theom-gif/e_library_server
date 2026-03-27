@@ -39,7 +39,7 @@ class BookSeeder extends Seeder
                 'slug' => 'the-glass-kingdom',
                 'category_slug' => 'fantasy',
                 'description' => 'A young archivist discovers a shattered realm hidden behind the palace mirrors.',
-                'cover_image_url' => 'books/covers/cute.jpg',
+                'cover_image_url' => 'C:\Users\Admin\Desktop\VC1-Backend\storage\app\public\avatars\6wgNvF8EoOgBmH0AyGuSipvX1fBqWaefWUBLwUoK.jpg',
             ],
             [
                 'title' => 'Orbit of Memory',
