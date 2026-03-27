@@ -15,7 +15,13 @@ class AdminCategoryController extends Controller
     {
         $search = trim((string) $request->query('search', ''));
 
-        $query = Category::query()->withCount('books')->orderBy('name');
+        $query = Category::query()
+            ->withCount([
+                'books as books_count' => function ($bookQuery) {
+                    $bookQuery->where('status', 'approved');
+                },
+            ])
+            ->orderBy('name');
 
         if ($search !== '') {
             $keyword = strtolower($search);
@@ -57,7 +63,11 @@ class AdminCategoryController extends Controller
             'is_active' => true,
         ]);
 
-        $category->loadCount('books');
+        $category->loadCount([
+            'books as books_count' => function ($bookQuery) {
+                $bookQuery->where('status', 'approved');
+            },
+        ]);
 
         return response()->json($this->transform($category), 201);
     }
