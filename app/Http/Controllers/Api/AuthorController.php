@@ -4,10 +4,10 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
-use App\Models\UserAvatar;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class AuthorController extends Controller
 {
@@ -17,47 +17,49 @@ class AuthorController extends Controller
             'q' => 'nullable|string|max:255',
             'page' => 'nullable|integer|min:1',
             'per_page' => 'nullable|integer|min:1|max:100',
+            'role_id' => 'nullable|integer',
+            'role' => 'nullable|string|max:100',
+            'role_name' => 'nullable|string|max:100',
         ]);
+
+        $roleMap = $this->getRoleMap();
+        $authorRoleId = $this->resolveAuthorRoleId($validated, $roleMap);
+
+        if ($authorRoleId === null) {
+            return response()->json([
+                'success' => true,
+                'data' => [],
+                'meta' => [
+                    'current_page' => 1,
+                    'last_page' => 1,
+                    'per_page' => (int) ($validated['per_page'] ?? 60),
+                    'total' => 0,
+                ],
+            ]);
+        }
 
         $search = trim((string) ($validated['q'] ?? ''));
         $perPage = (int) ($validated['per_page'] ?? 60);
 
-        $query = User::query()
-            ->where('role_id', 2)
-            ->with(['avatarImage'])
-            ->select('users.*')
-            ->selectSub(function ($subQuery) {
-                $subQuery->from('books')
-                    ->selectRaw('COUNT(DISTINCT books.id)')
-                    ->whereColumn('books.user_id', 'users.id');
-            }, 'books_count')
-            ->selectSub(function ($subQuery) {
-                $subQuery->from('favorite_authors')
-                    ->selectRaw('COUNT(*)')
-                    ->whereColumn('favorite_authors.author_id', 'users.id');
-            }, 'followers_count')
-            ->selectSub(function ($subQuery) {
-                $subQuery->from('book_ratings')
-                    ->join('books', 'books.id', '=', 'book_ratings.book_id')
-                    ->selectRaw('AVG(book_ratings.rating)')
-                    ->whereColumn('books.user_id', 'users.id');
-            }, 'avg_rating');
+        $query = $this->baseAuthorQuery($authorRoleId);
 
         if ($search !== '') {
             $query->where(function ($authorQuery) use ($search) {
                 $authorQuery->where('firstname', 'like', '%'.$search.'%')
                     ->orWhere('lastname', 'like', '%'.$search.'%')
-                    ->orWhereRaw("CONCAT(COALESCE(firstname, ''), ' ', COALESCE(lastname, '')) LIKE ?", ['%'.$search.'%'])
-                    ->orWhere('bio', 'like', '%'.$search.'%');
+                    ->orWhere('email', 'like', '%'.$search.'%')
+                    ->orWhere('bio', 'like', '%'.$search.'%')
+                    ->orWhereRaw("CONCAT(COALESCE(firstname, ''), ' ', COALESCE(lastname, '')) LIKE ?", ['%'.$search.'%']);
             });
         }
 
         $authors = $query
             ->orderByRaw("COALESCE(firstname, '') ASC")
+            ->orderByRaw("COALESCE(lastname, '') ASC")
             ->paginate($perPage);
 
-        $data = $authors->getCollection()->map(function (User $author) {
-            return $this->transformAuthor($author);
+        $data = $authors->getCollection()->map(function (User $author) use ($roleMap): array {
+            return $this->transformUser($author, $roleMap);
         })->values();
 
         return response()->json([
@@ -74,71 +76,193 @@ class AuthorController extends Controller
 
     public function show(int $id): JsonResponse
     {
-        $author = User::query()
-            ->where('role_id', 2)
-            ->with(['avatarImage'])
-            ->findOrFail($id);
+        $roleMap = $this->getRoleMap();
+        $authorRoleId = $this->resolveRoleIdFromName('author', $roleMap) ?? 2;
+
+        $author = $this->baseAuthorQuery($authorRoleId)
+            ->where('users.id', $id)
+            ->first();
+
+        if (!$author) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Author not found.',
+            ], 404);
+        }
 
         return response()->json([
             'success' => true,
-            'data' => $this->transformAuthor($author),
+            'data' => $this->transformUser($author, $roleMap),
         ]);
     }
 
     public function showByName(string $name): JsonResponse
     {
-        $author = User::query()
-            ->where('role_id', 2)
-            ->with(['avatarImage'])
-            ->whereRaw("LOWER(CONCAT(COALESCE(firstname, ''), ' ', COALESCE(lastname, ''))) = ?", [mb_strtolower(trim($name))])
-            ->firstOrFail();
+        $roleMap = $this->getRoleMap();
+        $authorRoleId = $this->resolveRoleIdFromName('author', $roleMap) ?? 2;
+        $needle = mb_strtolower(trim($name));
+
+        $author = $this->baseAuthorQuery($authorRoleId)
+            ->whereRaw("LOWER(CONCAT(COALESCE(firstname, ''), ' ', COALESCE(lastname, ''))) = ?", [$needle])
+            ->first();
+
+        if (!$author) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Author not found.',
+            ], 404);
+        }
 
         return response()->json([
             'success' => true,
-            'data' => $this->transformAuthor($author),
+            'data' => $this->transformUser($author, $roleMap),
         ]);
     }
 
-    private function transformAuthor(User $author): array
+    private function baseAuthorQuery(int $roleId)
+    {
+        return User::query()
+            ->with(['avatarImage'])
+            ->withCount(['books'])
+            ->select('users.*')
+            ->selectSub(function ($subQuery) {
+                $subQuery->from('favorite_authors')
+                    ->selectRaw('COUNT(*)')
+                    ->whereColumn('favorite_authors.author_id', 'users.id');
+            }, 'followers_count')
+            ->selectSub(function ($subQuery) {
+                $subQuery->from('book_ratings')
+                    ->join('books', 'books.id', '=', 'book_ratings.book_id')
+                    ->selectRaw('COALESCE(AVG(book_ratings.rating), 0)')
+                    ->whereColumn('books.user_id', 'users.id');
+            }, 'avg_rating')
+            ->where('role_id', $roleId);
+    }
+
+    private function transformUser(User $author, array $roleMap): array
     {
         $fullName = trim(($author->firstname ?? '').' '.($author->lastname ?? ''));
-        $avatarUrl = $this->resolvePhotoUrl($author);
+        $roleName = strtolower(trim((string) ($roleMap[$author->role_id] ?? 'author')));
+        $avatar = $this->resolveAvatarData($author);
+        $avgRating = round((float) ($author->avg_rating ?? 0), 2);
 
         return [
             'id' => $author->id,
-            'name' => $fullName !== '' ? $fullName : ($author->firstname ?: $author->lastname ?: 'Unknown'),
+            'name' => $fullName !== '' ? $fullName : 'Unknown',
+            'firstname' => $author->firstname,
+            'lastname' => $author->lastname,
+            'role_id' => (int) $author->role_id,
+            'role_name' => $roleName,
+            'role' => $roleName,
             'bio' => $author->bio,
-            'photo' => $avatarUrl,
-            'avatar' => $avatarUrl,
-            'image_url' => $avatarUrl,
+            'avatar' => $avatar['url'],
+            'avatar_url' => $avatar['url'],
+            'photo' => $avatar['url'],
+            'photo_url' => $avatar['url'],
+            'image_url' => $avatar['url'],
+            'profile_photo_path' => $avatar['path'],
+            'profile_photo_url' => $avatar['url'],
+            'avatar_path' => $avatar['path'],
+            'followers_count' => (int) ($author->followers_count ?? 0),
             'followers' => (int) ($author->followers_count ?? 0),
-            'avg_rating' => round((float) ($author->avg_rating ?? 0), 2),
-            'average_rating' => round((float) ($author->avg_rating ?? 0), 2),
             'books_count' => (int) ($author->books_count ?? 0),
             'book_count' => (int) ($author->books_count ?? 0),
+            'avg_rating' => $avgRating,
+            'average_rating' => $avgRating,
         ];
     }
 
-    private function resolvePhotoUrl(User $author): ?string
+    private function resolveAvatarData(User $author): array
     {
         if ($author->avatarImage) {
-            return route('avatars.show', [
-                'userId' => $author->id,
-                'v' => optional($author->avatarImage->updated_at)->timestamp,
-            ], false);
+            return [
+                'path' => null,
+                'url' => route('avatars.show', [
+                    'userId' => $author->id,
+                    'v' => optional($author->avatarImage->updated_at)->timestamp,
+                ]),
+            ];
         }
 
-        $avatar = trim((string) $author->avatar);
-        if ($avatar === '') {
+        $raw = trim((string) $author->avatar);
+        if ($raw === '') {
+            return ['path' => null, 'url' => null];
+        }
+
+        if (preg_match('/^(https?:|data:)/i', $raw)) {
+            return ['path' => null, 'url' => $raw];
+        }
+
+        $normalized = $this->normalizeAsset($raw);
+
+        return [
+            'path' => $normalized['path'] ?? null,
+            'url' => $normalized['url'] ?? null,
+        ];
+    }
+
+    private function normalizeAsset(string $value): array
+    {
+        $value = trim($value);
+
+        if ($value === '') {
+            return ['path' => null, 'url' => null];
+        }
+
+        if (preg_match('/^(https?:|data:)/i', $value)) {
+            return ['path' => null, 'url' => $value];
+        }
+
+        if (preg_match('/^(?:[A-Za-z]:[\\\\\\/]|\\\\\\\\)/', $value)) {
+            return ['path' => null, 'url' => null];
+        }
+
+        if (Storage::disk('public')->exists($value)) {
+            return [
+                'path' => $value,
+                'url' => Storage::disk('public')->url($value),
+            ];
+        }
+
+        return ['path' => null, 'url' => $value];
+    }
+
+    private function getRoleMap(): array
+    {
+        return DB::table('roles')
+            ->pluck('name', 'id')
+            ->map(static fn ($name) => (string) $name)
+            ->all();
+    }
+
+    private function resolveAuthorRoleId(array $validated, array $roleMap): ?int
+    {
+        $requestedRoleId = $validated['role_id'] ?? null;
+        $requestedRole = strtolower(trim((string) ($validated['role'] ?? $validated['role_name'] ?? '')));
+
+        if ($requestedRoleId !== null) {
+            return ((int) $requestedRoleId === 2) ? 2 : null;
+        }
+
+        if ($requestedRole !== '') {
+            if (in_array($requestedRole, ['author', 'authors'], true)) {
+                return 2;
+            }
+
             return null;
         }
 
-        if (preg_match('/^(https?:|data:)/i', $avatar)) {
-            return $avatar;
+        return 2;
+    }
+
+    private function resolveRoleIdFromName(string $roleName, array $roleMap): ?int
+    {
+        foreach ($roleMap as $id => $name) {
+            if (strtolower(trim((string) $name)) === strtolower(trim($roleName))) {
+                return (int) $id;
+            }
         }
 
-        return str_starts_with($avatar, '/')
-            ? $avatar
-            : '/'.ltrim($avatar, '/');
+        return $roleName === 'author' ? 2 : null;
     }
 }

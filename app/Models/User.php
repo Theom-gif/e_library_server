@@ -65,6 +65,11 @@ class User extends Authenticatable
         return $this->hasOne(UserAvatar::class);
     }
 
+    public function books(): HasMany
+    {
+        return $this->hasMany(Book::class, 'user_id');
+    }
+
     public function readingLogs(): HasMany
     {
         return $this->hasMany(UserReadingLog::class);

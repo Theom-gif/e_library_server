@@ -52,8 +52,10 @@ Route::prefix('auth')->group(function () {
 Route::apiResource('categories', CategoryController::class);
 
 Route::get('/books', [BookWorkflowController::class, 'approvedBooks'])->name('api.books.index');
-Route::get('/authors/by-name/{name}', [AuthorController::class, 'showByName'])->name('api.authors.by-name');
+Route::get('/users', [AuthorController::class, 'index'])->name('api.users.index');
+Route::get('/users/{id}', [AuthorController::class, 'show'])->whereNumber('id')->name('api.users.show');
 Route::get('/authors', [AuthorController::class, 'index'])->name('api.authors.index');
+Route::get('/authors/by-name/{name}', [AuthorController::class, 'showByName'])->name('api.authors.by-name');
 Route::get('/authors/{id}', [AuthorController::class, 'show'])->whereNumber('id')->name('api.authors.show');
 Route::get('/book', [BookWorkflowController::class, 'approvedBooks']);
 Route::get('/books/discover', [BookWorkflowController::class, 'discoverBooks'])->name('api.books.discover');

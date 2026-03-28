@@ -11,7 +11,8 @@ Use this with root `BACKEND_API.md`.
 
 The Authors page:
 
-- Calls `GET /api/authors` with query params:
+- Calls `GET /api/users` with query params:
+  - `role_id=2` or `role=author`
   - `q` (search keyword, optional)
   - `per_page` (currently `60`)
   - `page` (optional)
@@ -27,11 +28,16 @@ The Authors page:
 
 ### `GET /api/authors`
 
-Implemented as a **public** endpoint so authors can be browsed without login.
+Fallback alias for `/api/users`. Implemented as a **public** endpoint so authors can be browsed without login.
+
+### `GET /api/users`
+
+Implemented as the primary **public** endpoint for author profiles.
 
 #### Query parameters
 
 - `q` (optional): search by author name/bio
+- `role_id` or `role` or `role_name`: author selector, usually `2` or `author`
 - `page` (optional): for pagination
 - `per_page` (optional): page size
 
@@ -71,6 +77,7 @@ The backend also supports:
 
 - `GET /api/authors/{id}`
 - `GET /api/authors/by-name/{name}`
+- `GET /api/users/{id}`
 
 ## Author field mapping in frontend
 
@@ -80,7 +87,8 @@ The backend also supports:
 - `name`: `name` or `author_name` or `title`
 - `bio`: `bio` or `description`
 - `photo`: `photo` or `avatar` or `image_url`
-- `cover`: not used on this page
+- `avatar_url`: `avatar_url` or `photo_url` or `profile_photo_url`
+- `profile_photo_path`: `profile_photo_path` or `avatar_path`
 - `avg_rating`: `avg_rating` or `average_rating`
 - `books_count`: `books_count` or `book_count`
 
@@ -99,7 +107,7 @@ Examples:
 
 ## Fallback behavior (important)
 
-If `GET /api/authors` returns status `401`, `403`, `404`, or `405`, frontend falls back to deriving authors from `GET /api/books`.
+If `GET /api/users` or `GET /api/authors` returns status `401`, `403`, `404`, or `405`, frontend falls back to deriving authors from `GET /api/books`.
 
 That fallback keeps the page usable, but it has limitations:
 

@@ -35,20 +35,6 @@ class BookSeeder extends Seeder
 
         $books = [
             [
-                'title' => 'The Glass Kingdom',
-                'slug' => 'the-glass-kingdom',
-                'category_slug' => 'fantasy',
-                'description' => 'A young archivist discovers a shattered realm hidden behind the palace mirrors.',
-                'cover_image_url' => null,
-            ],
-            [
-                'title' => 'Orbit of Memory',
-                'slug' => 'orbit-of-memory',
-                'category_slug' => 'science-fiction',
-                'description' => 'A drifting station AI starts recovering memories that do not belong to any one human.',
-                'cover_image_url' => 'books/covers/PvcZxFpFr9zHQw7mAROhfRYSGwLETqP5xnugJRTK.jpg',
-            ],
-            [
                 'title' => 'Midnight in Cedar Lane',
                 'slug' => 'midnight-in-cedar-lane',
                 'category_slug' => 'mystery',
