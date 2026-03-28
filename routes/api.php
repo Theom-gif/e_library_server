@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\BookController;
+use App\Http\Controllers\Api\AuthorController;
 use App\Http\Controllers\Api\BookWorkflowController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\PostController;
@@ -51,6 +52,9 @@ Route::prefix('auth')->group(function () {
 Route::apiResource('categories', CategoryController::class);
 
 Route::get('/books', [BookWorkflowController::class, 'approvedBooks'])->name('api.books.index');
+Route::get('/authors/by-name/{name}', [AuthorController::class, 'showByName'])->name('api.authors.by-name');
+Route::get('/authors', [AuthorController::class, 'index'])->name('api.authors.index');
+Route::get('/authors/{id}', [AuthorController::class, 'show'])->whereNumber('id')->name('api.authors.show');
 Route::get('/book', [BookWorkflowController::class, 'approvedBooks']);
 Route::get('/books/discover', [BookWorkflowController::class, 'discoverBooks'])->name('api.books.discover');
 Route::get('/books/{book}', [BookWorkflowController::class, 'show'])->name('api.books.show');
