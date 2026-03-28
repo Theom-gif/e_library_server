@@ -27,6 +27,7 @@ class ReviewController extends Controller
 
         $comments = DB::table('book_comments as bc')
             ->leftJoin('users as u', 'u.id', '=', 'bc.user_id')
+            ->leftJoin('user_avatars as ua', 'ua.user_id', '=', 'u.id')
             ->where('bc.book_id', $book->id)
             ->orderByDesc('bc.created_at')
             ->select([
@@ -41,10 +42,11 @@ class ReviewController extends Controller
                 'bc.updated_at',
                 'u.firstname',
                 'u.lastname',
+                'ua.updated_at as avatar_updated_at',
             ])
             ->paginate($perPage);
 
-        $items = array_map(static function ($item): array {
+        $items = array_map(function ($item): array {
             return [
                 'id' => (int) $item->id,
                 'book_id' => (int) $item->book_id,
@@ -55,11 +57,17 @@ class ReviewController extends Controller
                 'is_edited' => (bool) $item->is_edited,
                 'created_at' => $item->created_at,
                 'updated_at' => $item->updated_at,
+                'created_at_human' => $this->asHumanString($item->created_at),
+                'updated_at_human' => $this->asHumanString($item->updated_at),
                 'user' => [
                     'id' => (int) $item->user_id,
                     'name' => trim(($item->firstname ?? '').' '.($item->lastname ?? '')),
                     'firstname' => $item->firstname,
                     'lastname' => $item->lastname,
+                    'avatar' => $this->buildAvatarUrl((int) $item->user_id, $item->avatar_updated_at ?? null, $item->avatar ?? null),
+                    'avatar_url' => $this->buildAvatarUrl((int) $item->user_id, $item->avatar_updated_at ?? null, $item->avatar ?? null),
+                    'photo' => $this->buildAvatarUrl((int) $item->user_id, $item->avatar_updated_at ?? null, $item->avatar ?? null),
+                    'photo_url' => $this->buildAvatarUrl((int) $item->user_id, $item->avatar_updated_at ?? null, $item->avatar ?? null),
                 ],
             ];
         }, $comments->items());
@@ -118,6 +126,7 @@ class ReviewController extends Controller
 
         $comment = DB::table('book_comments as bc')
             ->leftJoin('users as u', 'u.id', '=', 'bc.user_id')
+            ->leftJoin('user_avatars as ua', 'ua.user_id', '=', 'u.id')
             ->where('bc.id', $id)
             ->select([
                 'bc.id',
@@ -131,6 +140,7 @@ class ReviewController extends Controller
                 'bc.updated_at',
                 'u.firstname',
                 'u.lastname',
+                'ua.updated_at as avatar_updated_at',
             ])
             ->first();
 
@@ -147,11 +157,17 @@ class ReviewController extends Controller
                 'is_edited' => (bool) $comment->is_edited,
                 'created_at' => $comment->created_at,
                 'updated_at' => $comment->updated_at,
+                'created_at_human' => $this->asHumanString($comment->created_at),
+                'updated_at_human' => $this->asHumanString($comment->updated_at),
                 'user' => [
                     'id' => (int) $comment->user_id,
                     'name' => trim(($comment->firstname ?? '').' '.($comment->lastname ?? '')),
                     'firstname' => $comment->firstname,
                     'lastname' => $comment->lastname,
+                    'avatar' => $this->buildAvatarUrl((int) $comment->user_id, $comment->avatar_updated_at ?? null, $comment->avatar ?? null),
+                    'avatar_url' => $this->buildAvatarUrl((int) $comment->user_id, $comment->avatar_updated_at ?? null, $comment->avatar ?? null),
+                    'photo' => $this->buildAvatarUrl((int) $comment->user_id, $comment->avatar_updated_at ?? null, $comment->avatar ?? null),
+                    'photo_url' => $this->buildAvatarUrl((int) $comment->user_id, $comment->avatar_updated_at ?? null, $comment->avatar ?? null),
                 ],
             ],
         ], 201);
@@ -657,7 +673,10 @@ class ReviewController extends Controller
             'user' => [
                 'id' => $ownerId,
                 'name' => trim(($item->firstname ?? '').' '.($item->lastname ?? '')),
-                'avatar' => $this->resolveAvatarUrl($item->avatar ?? null),
+                'avatar' => $this->buildAvatarUrl($ownerId, $item->avatar_updated_at ?? null, $item->avatar ?? null),
+                'avatar_url' => $this->buildAvatarUrl($ownerId, $item->avatar_updated_at ?? null, $item->avatar ?? null),
+                'photo' => $this->buildAvatarUrl($ownerId, $item->avatar_updated_at ?? null, $item->avatar ?? null),
+                'photo_url' => $this->buildAvatarUrl($ownerId, $item->avatar_updated_at ?? null, $item->avatar ?? null),
             ],
             'text' => $item->content,
             'rating' => $item->rating !== null ? (int) $item->rating : null,
@@ -665,6 +684,8 @@ class ReviewController extends Controller
             'replies' => (int) ($item->replies_count ?? 0),
             'created_at' => $this->asIsoString($item->created_at),
             'updated_at' => $this->asIsoString($item->updated_at),
+            'created_at_human' => $this->asHumanString($item->created_at),
+            'updated_at_human' => $this->asHumanString($item->updated_at),
             'liked_by_me' => (bool) ($item->liked_by_me ?? false),
             'can_edit' => $viewer !== null && (int) $viewer->id === $ownerId,
             'can_delete' => $viewer !== null && (int) $viewer->id === $ownerId,
@@ -676,6 +697,17 @@ class ReviewController extends Controller
         return PublicImage::normalize($avatar, 'avatars')['url'] ?? null;
     }
 
+    private function buildAvatarUrl(int $userId, $updatedAt = null, ?string $fallbackAvatar = null): ?string
+    {
+        if ($updatedAt) {
+            $version = Carbon::parse($updatedAt)->timestamp;
+
+            return route('avatars.show', ['userId' => $userId, 'v' => $version], false);
+        }
+
+        return $this->resolveAvatarUrl($fallbackAvatar);
+    }
+
     private function asIsoString($value): ?string
     {
         if ($value === null) {
@@ -683,6 +715,15 @@ class ReviewController extends Controller
         }
 
         return Carbon::parse($value)->toIso8601String();
+    }
+
+    private function asHumanString($value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        return Carbon::parse($value)->diffForHumans();
     }
 
     private function syncBookRating(int $bookId, int $userId, int $rating): void
