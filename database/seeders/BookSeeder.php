@@ -39,7 +39,7 @@ class BookSeeder extends Seeder
                 'slug' => 'the-glass-kingdom',
                 'category_slug' => 'fantasy',
                 'description' => 'A young archivist discovers a shattered realm hidden behind the palace mirrors.',
-                'cover_image_url' => 'C:\Users\Admin\Desktop\VC1-Backend\storage\app\public\avatars\6wgNvF8EoOgBmH0AyGuSipvX1fBqWaefWUBLwUoK.jpg',
+                'cover_image_url' => null,
             ],
             [
                 'title' => 'Orbit of Memory',
@@ -60,7 +60,7 @@ class BookSeeder extends Seeder
                 'slug' => 'letters-between-monsoons',
                 'category_slug' => 'romance',
                 'description' => 'Two strangers keep finding each other through letters that arrive years too late.',
-                'cover_image_url' => 'C:\Users\Admin\Desktop\VC1-Backend\storage\app\public\avatars\0iMJusoENwoMgaF6BSopkuip9hE5TUIMiyIlo1yF.jpg',
+                'cover_image_url' => null,
             ],
         ];
 

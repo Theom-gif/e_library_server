@@ -741,19 +741,24 @@ class BookWorkflowController extends Controller
             'book_url' => $publicPdfUrl,
             'file_url' => $publicPdfUrl,
             'read_url' => route('api.books.read', ['book' => $book->id]),
-            'cover_image_path' => $book->cover_image_path,
-            'original_cover_name' => $book->original_cover_name,
-            'cover_mime_type' => $book->cover_mime_type,
-            'cover_image_url' => $cover['url'],
-            'cover_view_url' => $cover['url'],
-            'cover_api_url' => route('api.books.cover', ['book' => $book->id]),
-            'cover_url' => $cover['url'],
-            'cover' => $cover['url'],
-            'poster' => $cover['url'],
-            'created_at' => $book->created_at,
-            'updated_at' => $book->updated_at,
-        ];
-    }
+              'cover_image_path' => $book->cover_image_path,
+              'original_cover_name' => $book->original_cover_name,
+              'cover_mime_type' => $book->cover_mime_type,
+              'cover_image_url' => $cover['url'],
+              'cover_view_url' => $cover['url'],
+              'cover_api_url' => route('api.books.cover', ['book' => $book->id]),
+              'cover_url' => $cover['url'],
+              'cover' => $cover['url'],
+              'poster' => $cover['url'],
+              'coverImageUrl' => $cover['url'],
+              'coverImagePath' => $cover['path'],
+              'coverViewUrl' => $cover['url'],
+              'coverApiUrl' => route('api.books.cover', ['book' => $book->id]),
+              'coverUrl' => $cover['url'],
+              'created_at' => $book->created_at,
+              'updated_at' => $book->updated_at,
+          ];
+      }
 
     private function resolveCoverAsset(?string $pathOrUrl): array
     {
@@ -975,10 +980,19 @@ class BookWorkflowController extends Controller
 
     private function transformSimpleBook(Book $book): array
     {
+        $cover = $this->resolveCoverAsset($book->cover_image_path ?: $book->cover_image_url);
+
         return [
             'id' => $book->id,
             'title' => $book->title,
             'authorId' => $book->author_id ?? $book->user_id,
+            'author_name' => $book->author_name,
+            'cover_image_url' => $cover['url'],
+            'cover_view_url' => $cover['url'],
+            'cover_api_url' => route('api.books.cover', ['book' => $book->id]),
+            'cover_url' => $cover['url'],
+            'cover' => $cover['url'],
+            'poster' => $cover['url'],
             'status' => (string) $book->status,
             'created_at' => $book->created_at,
             'updated_at' => $book->updated_at,
