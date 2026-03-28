@@ -133,8 +133,7 @@ class Book extends Model
     public function toApiArray(): array
     {
         $item = $this->toArray();
-
-        $coverUrl = $this->resolveAssetUrl($this->cover_image_path) ?? ($item['cover_image_url'] ?? null);
+        $cover = $this->resolvedCoverAsset();
         $bookUrl = $this->resolveAssetUrl($this->pdf_path ?? null) ?? ($item['book_file_url'] ?? null);
         $coverApiUrl = $this->id ? route('api.books.cover', ['book' => $this->id]) : null;
         $readApiUrl = $this->id ? route('api.books.read', ['book' => $this->id]) : null;
@@ -143,7 +142,7 @@ class Book extends Model
         $item['author'] = $item['author'] ?? $this->author_name;
         $item['category'] = $item['category'] ?? $this->category?->name;
         $item['published_year'] = $item['published_year'] ?? null;
-        $item['cover_image_url'] = $coverUrl;
+        $item['cover_image_url'] = $cover['url'];
         $item['book_file_url'] = $bookUrl;
         $item['book_file_path'] = $item['book_file_path'] ?? ($this->pdf_path ?? null);
 
@@ -157,7 +156,7 @@ class Book extends Model
         $item['cover'] = $item['cover_image_url'];
         $item['cover_url'] = $item['cover_image_url'];
         $item['cover_api_url'] = $coverApiUrl;
-        $item['cover_view_url'] = $coverUrl;
+        $item['cover_view_url'] = $cover['url'];
         $item['book_url'] = $item['book_file_url'];
         $item['file_url'] = $item['book_file_url'];
         $item['pdf_url'] = $item['book_file_url'];
@@ -198,6 +197,55 @@ class Book extends Model
         }
 
         return PublicImage::normalize($value, 'books/covers')['url'] ?? null;
+    }
+
+    public function resolvedCoverAsset(): array
+    {
+        $this->loadMissing('coverImage');
+
+        if ($this->coverImage) {
+            return [
+                'path' => null,
+                'url' => route('api.books.cover', ['book' => $this->id], false),
+            ];
+        }
+
+        $item = $this->toArray();
+        $asset = $this->resolveStoredCoverAsset($this->cover_image_path ?: $this->cover_image_url);
+
+        if ($asset['url']) {
+            return $asset;
+        }
+
+        return [
+            'path' => $this->cover_image_path,
+            'url' => $item['cover_image_url'] ?? null,
+        ];
+    }
+
+    private function resolveStoredCoverAsset(?string $pathOrUrl): array
+    {
+        $value = trim((string) $pathOrUrl);
+        if ($value === '') {
+            return ['path' => null, 'url' => null];
+        }
+
+        if (preg_match('/^(https?:|data:)/i', $value)) {
+            return ['path' => null, 'url' => $value];
+        }
+
+        if (preg_match('/^(?:[A-Za-z]:[\\\\\\/]|\\\\\\\\)/', $value)) {
+            return ['path' => null, 'url' => null];
+        }
+
+        if (Storage::disk('public')->exists($value)) {
+            return [
+                'path' => $value,
+                'url' => Storage::disk('public')->url($value),
+            ];
+        }
+
+        return ['path' => null, 'url' => null];
     }
 
     public function category()

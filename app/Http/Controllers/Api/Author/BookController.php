@@ -334,6 +334,7 @@ class BookController extends Controller
 
     private function transformBook(Book $book, ?array $analytics = null): array
     {
+        $book->loadMissing('coverImage');
         $authorName = $book->author_name
             ?: $book->author
             ?: trim((string) ($book->author?->firstname.' '.$book->author?->lastname));
@@ -341,7 +342,7 @@ class BookController extends Controller
         $categoryName = $book->category
             ?: $book->category?->name;
 
-        $cover = $this->resolveCoverAsset($book->cover_image_path ?: $book->cover_image_url);
+        $cover = $book->resolvedCoverAsset();
         $file = $this->resolveFileAsset($book->book_file_path ?: $book->pdf_path ?: $book->book_file_url);
 
         return [

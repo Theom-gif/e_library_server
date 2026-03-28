@@ -29,8 +29,7 @@ class AuthorController extends Controller
             ->selectSub(function ($subQuery) {
                 $subQuery->from('books')
                     ->selectRaw('COUNT(DISTINCT books.id)')
-                    ->whereColumn('books.user_id', 'users.id')
-                    ->orWhereColumn('books.author_id', 'users.id');
+                    ->whereColumn('books.user_id', 'users.id');
             }, 'books_count')
             ->selectSub(function ($subQuery) {
                 $subQuery->from('favorite_authors')
@@ -41,8 +40,7 @@ class AuthorController extends Controller
                 $subQuery->from('book_ratings')
                     ->join('books', 'books.id', '=', 'book_ratings.book_id')
                     ->selectRaw('AVG(book_ratings.rating)')
-                    ->whereColumn('books.user_id', 'users.id')
-                    ->orWhereColumn('books.author_id', 'users.id');
+                    ->whereColumn('books.user_id', 'users.id');
             }, 'avg_rating');
 
         if ($search !== '') {

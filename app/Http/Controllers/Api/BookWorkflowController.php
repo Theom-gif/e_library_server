@@ -101,7 +101,7 @@ class BookWorkflowController extends Controller
         $categoryId = $this->resolveCategoryFilter($request);
 
         $query = Book::query()
-            ->with(['category:id,name,slug', 'author:id,firstname,lastname'])
+            ->with(['category:id,name,slug', 'author:id,firstname,lastname', 'coverImage'])
             ->where('status', 'approved');
 
         if ($search !== '') {
@@ -151,7 +151,7 @@ class BookWorkflowController extends Controller
         );
 
         $localQuery = Book::query()
-            ->with(['category:id,name,slug', 'author:id,firstname,lastname'])
+            ->with(['category:id,name,slug', 'author:id,firstname,lastname', 'coverImage'])
             ->where('status', 'approved');
 
         $this->applyBookSearch($localQuery, $keyword);
@@ -207,7 +207,7 @@ class BookWorkflowController extends Controller
         );
 
         $query = Book::query()
-            ->with(['category:id,name,slug'])
+            ->with(['category:id,name,slug', 'coverImage'])
             ->where('author_id', $request->user()->id);
 
         if (in_array($status, ['pending', 'approved', 'rejected'], true)) {
@@ -480,7 +480,7 @@ class BookWorkflowController extends Controller
         $perPage = max(1, min((int) $request->query('per_page', 15), 100));
 
         $query = Book::query()
-            ->with(['category:id,name,slug'])
+            ->with(['category:id,name,slug', 'coverImage'])
             ->where('author_id', $request->user()->id);
 
         if (in_array($status, ['all', 'any', '*'], true)) {
@@ -712,8 +712,9 @@ class BookWorkflowController extends Controller
 
     private function transformBook(Book $book): array
     {
+        $book->loadMissing('coverImage');
         $publicPdfUrl = $this->resolveStoredAssetUrl($book->pdf_path) ?: $book->book_file_url;
-        $cover = $this->resolveCoverAsset($book->cover_image_path ?: $book->cover_image_url);
+        $cover = $book->resolvedCoverAsset();
 
         return [
             'id' => $book->id,
@@ -980,7 +981,8 @@ class BookWorkflowController extends Controller
 
     private function transformSimpleBook(Book $book): array
     {
-        $cover = $this->resolveCoverAsset($book->cover_image_path ?: $book->cover_image_url);
+        $book->loadMissing('coverImage');
+        $cover = $book->resolvedCoverAsset();
 
         return [
             'id' => $book->id,
