@@ -47,6 +47,8 @@ class ReviewController extends Controller
             ->paginate($perPage);
 
         $items = array_map(function ($item): array {
+            $avatarUrl = $this->buildAvatarUrl((int) $item->user_id, $item->avatar_updated_at ?? null, $item->avatar ?? null);
+
             return [
                 'id' => (int) $item->id,
                 'book_id' => (int) $item->book_id,
@@ -55,8 +57,8 @@ class ReviewController extends Controller
                 'content' => $item->content,
                 'likes_count' => (int) $item->likes_count,
                 'is_edited' => (bool) $item->is_edited,
-                'created_at' => $item->created_at,
-                'updated_at' => $item->updated_at,
+                'created_at' => $this->asIsoString($item->created_at),
+                'updated_at' => $this->asIsoString($item->updated_at),
                 'created_at_human' => $this->asHumanString($item->created_at),
                 'updated_at_human' => $this->asHumanString($item->updated_at),
                 'user' => [
@@ -64,10 +66,10 @@ class ReviewController extends Controller
                     'name' => trim(($item->firstname ?? '').' '.($item->lastname ?? '')),
                     'firstname' => $item->firstname,
                     'lastname' => $item->lastname,
-                    'avatar' => $this->buildAvatarUrl((int) $item->user_id, $item->avatar_updated_at ?? null, $item->avatar ?? null),
-                    'avatar_url' => $this->buildAvatarUrl((int) $item->user_id, $item->avatar_updated_at ?? null, $item->avatar ?? null),
-                    'photo' => $this->buildAvatarUrl((int) $item->user_id, $item->avatar_updated_at ?? null, $item->avatar ?? null),
-                    'photo_url' => $this->buildAvatarUrl((int) $item->user_id, $item->avatar_updated_at ?? null, $item->avatar ?? null),
+                    'avatar' => $avatarUrl,
+                    'avatar_url' => $avatarUrl,
+                    'photo' => $avatarUrl,
+                    'photo_url' => $avatarUrl,
                 ],
             ];
         }, $comments->items());
@@ -155,8 +157,8 @@ class ReviewController extends Controller
                 'content' => $comment->content,
                 'likes_count' => (int) $comment->likes_count,
                 'is_edited' => (bool) $comment->is_edited,
-                'created_at' => $comment->created_at,
-                'updated_at' => $comment->updated_at,
+                'created_at' => $this->asIsoString($comment->created_at),
+                'updated_at' => $this->asIsoString($comment->updated_at),
                 'created_at_human' => $this->asHumanString($comment->created_at),
                 'updated_at_human' => $this->asHumanString($comment->updated_at),
                 'user' => [
