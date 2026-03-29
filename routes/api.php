@@ -36,7 +36,7 @@ Route::get('/health', function () {
     return response()->json([
         'hosting' => 'success',
         'server'=> 'working',
-	'status' => 'healthy',
+	    'status' => 'healthy',
         'timestamp' => now()->toIso8601String(),
     ]);
 });
