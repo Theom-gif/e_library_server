@@ -43,7 +43,7 @@ Route::get('/health', function () {
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
     Route::post('/author_registration', [AuthController::class, 'authorRegister']);
-    Route::post('/login', [AuthController::class, 'login']);
+    Route::post('/login', [AuthController::class, 'login'])->name('login');
     Route::post('/book-view', [BookController::class, 'storeBookView']);
     Route::post('/request-password-reset', [PasswordResetController::class, 'requestPasswordReset']);
     Route::post('/reset-password', [PasswordResetController::class, 'resetPassword']);

@@ -14,6 +14,16 @@ class BookAnalyticsTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_author_books_list_requires_authentication(): void
+    {
+        $response = $this->getJson('/api/auth/books');
+
+        $response->assertUnauthorized()
+            ->assertJson([
+                'message' => 'Unauthenticated.',
+            ]);
+    }
+
     public function test_author_books_list_includes_total_readers(): void
     {
         $author = User::factory()->create(['role_id' => 2]);
