@@ -45,11 +45,11 @@ class AuthorController extends Controller
 
         if ($search !== '') {
             $query->where(function ($authorQuery) use ($search) {
-                $authorQuery->where('firstname', 'like', '%'.$search.'%')
-                    ->orWhere('lastname', 'like', '%'.$search.'%')
-                    ->orWhere('email', 'like', '%'.$search.'%')
-                    ->orWhere('bio', 'like', '%'.$search.'%')
-                    ->orWhereRaw("CONCAT(COALESCE(firstname, ''), ' ', COALESCE(lastname, '')) LIKE ?", ['%'.$search.'%']);
+                $authorQuery->where('firstname', 'like', '%' . $search . '%')
+                    ->orWhere('lastname', 'like', '%' . $search . '%')
+                    ->orWhere('email', 'like', '%' . $search . '%')
+                    ->orWhere('bio', 'like', '%' . $search . '%')
+                    ->orWhereRaw("CONCAT(COALESCE(firstname, ''), ' ', COALESCE(lastname, '')) LIKE ?", ['%' . $search . '%']);
             });
         }
 
@@ -121,43 +121,40 @@ class AuthorController extends Controller
 
     private function baseAuthorQuery(int $roleId)
     {
+        $bookCounts = DB::table('books')
+            ->selectRaw('COALESCE(author_id, user_id) as owner_id, COUNT(*) as books_count')
+            ->groupByRaw('COALESCE(author_id, user_id)');
+
+        $followerCounts = DB::table('favorite_authors')
+            ->selectRaw('author_id, COUNT(*) as followers_count')
+            ->groupBy('author_id');
+
+        $ratingAverages = DB::table('book_ratings')
+            ->join('books', 'books.id', '=', 'book_ratings.book_id')
+            ->selectRaw('COALESCE(books.author_id, books.user_id) as owner_id, COALESCE(AVG(book_ratings.rating), 0) as avg_rating')
+            ->groupByRaw('COALESCE(books.author_id, books.user_id)');
+
         return User::query()
             ->with(['avatarImage'])
             ->select('users.*')
-            ->selectSub(function ($subQuery) {
-                $subQuery->from('books')
-                    ->selectRaw('COUNT(*)')
-                    ->where(function ($bookQuery) {
-                        $bookQuery->whereColumn('books.author_id', 'users.id')
-                            ->orWhere(function ($fallbackQuery) {
-                                $fallbackQuery->whereNull('books.author_id')
-                                    ->whereColumn('books.user_id', 'users.id');
-                            });
-                    });
-            }, 'books_count')
-            ->selectSub(function ($subQuery) {
-                $subQuery->from('favorite_authors')
-                    ->selectRaw('COUNT(*)')
-                    ->whereColumn('favorite_authors.author_id', 'users.id');
-            }, 'followers_count')
-            ->selectSub(function ($subQuery) {
-                $subQuery->from('book_ratings')
-                    ->join('books', 'books.id', '=', 'book_ratings.book_id')
-                    ->selectRaw('COALESCE(AVG(book_ratings.rating), 0)')
-                    ->where(function ($bookQuery) {
-                        $bookQuery->whereColumn('books.author_id', 'users.id')
-                            ->orWhere(function ($fallbackQuery) {
-                                $fallbackQuery->whereNull('books.author_id')
-                                    ->whereColumn('books.user_id', 'users.id');
-                            });
-                    });
-            }, 'avg_rating')
+            ->leftJoinSub($bookCounts, 'book_counts', function ($join) {
+                $join->on('book_counts.owner_id', '=', 'users.id');
+            })
+            ->leftJoinSub($followerCounts, 'follower_counts', function ($join) {
+                $join->on('follower_counts.author_id', '=', 'users.id');
+            })
+            ->leftJoinSub($ratingAverages, 'rating_averages', function ($join) {
+                $join->on('rating_averages.owner_id', '=', 'users.id');
+            })
+            ->addSelect(DB::raw('COALESCE(book_counts.books_count, 0) as books_count'))
+            ->addSelect(DB::raw('COALESCE(follower_counts.followers_count, 0) as followers_count'))
+            ->addSelect(DB::raw('COALESCE(rating_averages.avg_rating, 0) as avg_rating'))
             ->where('role_id', $roleId);
     }
 
     private function transformUser(User $author, array $roleMap): array
     {
-        $fullName = trim(($author->firstname ?? '').' '.($author->lastname ?? ''));
+        $fullName = trim(($author->firstname ?? '') . ' ' . ($author->lastname ?? ''));
         $roleName = strtolower(trim((string) ($roleMap[$author->role_id] ?? 'author')));
         $avatar = $this->resolveAvatarData($author);
         $avgRating = round((float) ($author->avg_rating ?? 0), 2);
@@ -233,23 +230,17 @@ class AuthorController extends Controller
             return ['path' => null, 'url' => null];
         }
 
-        if (Storage::disk('public')->exists($value)) {
-            $storageUrl = Storage::disk('public')->url($value);
-
-            return [
-                'path' => $value,
-                'url' => $this->toAbsoluteUrl($storageUrl),
-            ];
-        }
-
-        return ['path' => null, 'url' => $this->toAbsoluteUrl($value)];
+        return [
+            'path' => $value,
+            'url' => $this->toAbsoluteUrl(Storage::disk('public')->url($value)),
+        ];
     }
 
     private function getRoleMap(): array
     {
         return DB::table('roles')
             ->pluck('name', 'id')
-            ->map(static fn ($name) => (string) $name)
+            ->map(static fn($name) => (string) $name)
             ->all();
     }
 
