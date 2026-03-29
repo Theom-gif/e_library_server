@@ -35,7 +35,8 @@ use Illuminate\Support\Facades\Route;
 Route::get('/health', function () {
     return response()->json([
         'hosting' => 'success',
-        'status' => 'healthy',
+        'server'=> 'working',
+	'status' => 'healthy',
         'timestamp' => now()->toIso8601String(),
     ]);
 });
