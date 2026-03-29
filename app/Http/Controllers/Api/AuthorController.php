@@ -123,8 +123,18 @@ class AuthorController extends Controller
     {
         return User::query()
             ->with(['avatarImage'])
-            ->withCount(['books'])
             ->select('users.*')
+            ->selectSub(function ($subQuery) {
+                $subQuery->from('books')
+                    ->selectRaw('COUNT(*)')
+                    ->where(function ($bookQuery) {
+                        $bookQuery->whereColumn('books.author_id', 'users.id')
+                            ->orWhere(function ($fallbackQuery) {
+                                $fallbackQuery->whereNull('books.author_id')
+                                    ->whereColumn('books.user_id', 'users.id');
+                            });
+                    });
+            }, 'books_count')
             ->selectSub(function ($subQuery) {
                 $subQuery->from('favorite_authors')
                     ->selectRaw('COUNT(*)')
@@ -134,7 +144,13 @@ class AuthorController extends Controller
                 $subQuery->from('book_ratings')
                     ->join('books', 'books.id', '=', 'book_ratings.book_id')
                     ->selectRaw('COALESCE(AVG(book_ratings.rating), 0)')
-                    ->whereColumn('books.user_id', 'users.id');
+                    ->where(function ($bookQuery) {
+                        $bookQuery->whereColumn('books.author_id', 'users.id')
+                            ->orWhere(function ($fallbackQuery) {
+                                $fallbackQuery->whereNull('books.author_id')
+                                    ->whereColumn('books.user_id', 'users.id');
+                            });
+                    });
             }, 'avg_rating')
             ->where('role_id', $roleId);
     }

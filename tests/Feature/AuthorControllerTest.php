@@ -92,4 +92,39 @@ class AuthorControllerTest extends TestCase
             ->assertJsonPath('data.role_name', 'author')
             ->assertJsonPath('data.avatar_url', 'https://example.com/avatar.jpg');
     }
+
+    public function test_users_endpoint_counts_books_owned_by_author_id(): void
+    {
+        $author = User::factory()->create([
+            'role_id' => 2,
+            'firstname' => 'Owned',
+            'lastname' => 'Author',
+        ]);
+
+        $reader = User::factory()->create(['role_id' => 3]);
+
+        $book = Book::create([
+            'author_id' => $author->id,
+            'title' => 'Owned By Author',
+            'slug' => 'owned-by-author',
+            'author_name' => 'Owned Author',
+            'description' => 'Testing author ownership.',
+            'status' => 'approved',
+        ]);
+
+        DB::table('book_ratings')->insert([
+            'book_id' => $book->id,
+            'user_id' => $reader->id,
+            'rating' => 4,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $response = $this->getJson('/api/users?role_id=2');
+
+        $response->assertOk()
+            ->assertJsonPath('data.0.id', $author->id)
+            ->assertJsonPath('data.0.books_count', 1)
+            ->assertJsonPath('data.0.avg_rating', 4.0);
+    }
 }
