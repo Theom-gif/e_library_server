@@ -126,6 +126,9 @@ class AuthorController extends Controller
 
         $bookCounts = DB::table('books')
             ->selectRaw($ownerExpression.' as owner_id, COUNT(*) as books_count')
+            ->when(Schema::hasColumn('books', 'status'), function ($query) {
+                $query->where('status', 'approved');
+            })
             ->groupByRaw($ownerExpression);
 
         $followerCounts = DB::table('favorite_authors')
@@ -135,6 +138,9 @@ class AuthorController extends Controller
         $ratingAverages = DB::table('book_ratings')
             ->join('books', 'books.id', '=', 'book_ratings.book_id')
             ->selectRaw($ownerExpression.' as owner_id, COALESCE(AVG(book_ratings.rating), 0) as avg_rating')
+            ->when(Schema::hasColumn('books', 'status'), function ($query) {
+                $query->where('books.status', 'approved');
+            })
             ->groupByRaw($ownerExpression);
 
         return User::query()
