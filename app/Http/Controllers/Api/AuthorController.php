@@ -218,13 +218,15 @@ class AuthorController extends Controller
         }
 
         if (Storage::disk('public')->exists($value)) {
+            $storageUrl = Storage::disk('public')->url($value);
+
             return [
                 'path' => $value,
-                'url' => Storage::disk('public')->url($value),
+                'url' => $this->toAbsoluteUrl($storageUrl),
             ];
         }
 
-        return ['path' => null, 'url' => $value];
+        return ['path' => null, 'url' => $this->toAbsoluteUrl($value)];
     }
 
     private function getRoleMap(): array
@@ -264,5 +266,19 @@ class AuthorController extends Controller
         }
 
         return $roleName === 'author' ? 2 : null;
+    }
+
+    private function toAbsoluteUrl(?string $value): ?string
+    {
+        $value = trim((string) $value);
+        if ($value === '') {
+            return null;
+        }
+
+        if (preg_match('/^(https?:|data:)/i', $value)) {
+            return $value;
+        }
+
+        return url($value);
     }
 }
