@@ -242,13 +242,6 @@ class AuthorController extends Controller
                 if (Schema::hasColumn('books', 'author_id')) {
                     $builder->where('author_id', $authorId);
 
-                    if (Schema::hasColumn('books', 'user_id')) {
-                        $builder->orWhere(function ($fallback) use ($authorId) {
-                            $fallback->whereNull('author_id')
-                                ->where('user_id', $authorId);
-                        });
-                    }
-
                     return;
                 }
 

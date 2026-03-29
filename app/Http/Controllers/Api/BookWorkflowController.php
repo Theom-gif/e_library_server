@@ -1040,13 +1040,6 @@ class BookWorkflowController extends Controller
             if ($this->booksTableHasAuthorId()) {
                 $builder->where('author_id', $authorId);
 
-                if ($this->booksTableHasUserId()) {
-                    $builder->orWhere(function (Builder $fallback) use ($authorId) {
-                        $fallback->whereNull('author_id')
-                            ->where('user_id', $authorId);
-                    });
-                }
-
                 return;
             }
 
@@ -1062,13 +1055,6 @@ class BookWorkflowController extends Controller
             ->where(function (Builder $builder) use ($authorId) {
                 if ($this->booksTableHasAuthorId()) {
                     $builder->where('author_id', $authorId);
-
-                    if ($this->booksTableHasUserId()) {
-                        $builder->orWhere(function (Builder $fallback) use ($authorId) {
-                            $fallback->whereNull('author_id')
-                                ->where('user_id', $authorId);
-                        });
-                    }
 
                     return;
                 }
