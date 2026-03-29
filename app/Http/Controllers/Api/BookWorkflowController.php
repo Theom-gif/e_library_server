@@ -18,6 +18,7 @@ use Illuminate\Http\Response;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -722,19 +723,12 @@ class BookWorkflowController extends Controller
     {
         $book->loadMissing(['coverImage', 'author']);
         $publicPdfUrl = $this->resolveStoredAssetUrl($book->pdf_path) ?: $book->book_file_url;
-        $cover = $book->resolvedCoverAsset();
-        $authorId = $book->author_id ?? $book->user_id;
-        $authorName = $this->resolveBookAuthorName($book);
+        $base = $this->baseBookPayload($book);
 
         return [
-            'id' => $book->id,
-            'title' => $book->title,
+            ...$base,
             'slug' => $book->slug,
             'description' => $book->description,
-            'author_id' => $authorId,
-            'authorId' => $authorId,
-            'author_name' => $authorName,
-            'author' => $authorName,
             'category_id' => $book->category_id,
             'category_name' => $book->category?->name,
             'status' => $book->status,
@@ -754,24 +748,10 @@ class BookWorkflowController extends Controller
             'book_url' => $publicPdfUrl,
             'file_url' => $publicPdfUrl,
             'read_url' => route('api.books.read', ['book' => $book->id]),
-              'cover_image_path' => $book->cover_image_path,
-              'original_cover_name' => $book->original_cover_name,
-              'cover_mime_type' => $book->cover_mime_type,
-              'cover_image_url' => $cover['url'],
-              'cover_view_url' => $cover['url'],
-              'cover_api_url' => route('api.books.cover', ['book' => $book->id]),
-              'cover_url' => $cover['url'],
-              'cover' => $cover['url'],
-              'poster' => $cover['url'],
-              'coverImageUrl' => $cover['url'],
-              'coverImagePath' => $cover['path'],
-              'coverViewUrl' => $cover['url'],
-              'coverApiUrl' => route('api.books.cover', ['book' => $book->id]),
-              'coverUrl' => $cover['url'],
-              'created_at' => $book->created_at,
-              'updated_at' => $book->updated_at,
-          ];
-      }
+            'original_cover_name' => $book->original_cover_name,
+            'cover_mime_type' => $book->cover_mime_type,
+        ];
+    }
 
     private function resolveCoverAsset(?string $pathOrUrl): array
     {
@@ -994,26 +974,9 @@ class BookWorkflowController extends Controller
     private function transformSimpleBook(Book $book): array
     {
         $book->loadMissing(['coverImage', 'author']);
-        $cover = $book->resolvedCoverAsset();
-        $authorId = $book->author_id ?? $book->user_id;
-        $authorName = $this->resolveBookAuthorName($book);
-
         return [
-            'id' => $book->id,
-            'title' => $book->title,
-            'authorId' => $authorId,
-            'author_id' => $authorId,
-            'author_name' => $authorName,
-            'author' => $authorName,
-            'cover_image_url' => $cover['url'],
-            'cover_view_url' => $cover['url'],
-            'cover_api_url' => route('api.books.cover', ['book' => $book->id]),
-            'cover_url' => $cover['url'],
-            'cover' => $cover['url'],
-            'poster' => $cover['url'],
+            ...$this->baseBookPayload($book),
             'status' => (string) $book->status,
-            'created_at' => $book->created_at,
-            'updated_at' => $book->updated_at,
         ];
     }
 
@@ -1034,35 +997,12 @@ class BookWorkflowController extends Controller
             return;
         }
 
-        $authorId = (int) $authorValue;
-
-        $query->where(function (Builder $builder) use ($authorId) {
-            if ($this->booksTableHasAuthorId()) {
-                $builder->where('author_id', $authorId);
-
-                return;
-            }
-
-            if ($this->booksTableHasUserId()) {
-                $builder->where('user_id', $authorId);
-            }
-        });
+        $query->where($this->authorOwnershipConstraint((int) $authorValue));
     }
 
     private function authorOwnedBooksQuery(int $authorId): Builder
     {
-        return Book::query()
-            ->where(function (Builder $builder) use ($authorId) {
-                if ($this->booksTableHasAuthorId()) {
-                    $builder->where('author_id', $authorId);
-
-                    return;
-                }
-
-                if ($this->booksTableHasUserId()) {
-                    $builder->where('user_id', $authorId);
-                }
-            });
+        return Book::query()->where($this->authorOwnershipConstraint($authorId));
     }
 
     private function resolveBookAuthorName(Book $book): string
@@ -1086,7 +1026,7 @@ class BookWorkflowController extends Controller
             return $hasAuthorId;
         }
 
-        $hasAuthorId = \Illuminate\Support\Facades\Schema::hasColumn('books', 'author_id');
+        $hasAuthorId = Schema::hasColumn('books', 'author_id');
 
         return $hasAuthorId;
     }
@@ -1099,8 +1039,56 @@ class BookWorkflowController extends Controller
             return $hasUserId;
         }
 
-        $hasUserId = \Illuminate\Support\Facades\Schema::hasColumn('books', 'user_id');
+        $hasUserId = Schema::hasColumn('books', 'user_id');
 
         return $hasUserId;
+    }
+
+    private function authorOwnershipConstraint(int $authorId): \Closure
+    {
+        return function (Builder $builder) use ($authorId) {
+            if ($this->booksTableHasAuthorId()) {
+                $builder->where('author_id', $authorId);
+
+                return;
+            }
+
+            if ($this->booksTableHasUserId()) {
+                $builder->where('user_id', $authorId);
+            }
+        };
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function baseBookPayload(Book $book): array
+    {
+        $cover = $book->resolvedCoverAsset();
+        $authorId = $book->author_id ?? $book->user_id;
+        $authorName = $this->resolveBookAuthorName($book);
+
+        return [
+            'id' => $book->id,
+            'title' => $book->title,
+            'authorId' => $authorId,
+            'author_id' => $authorId,
+            'author_name' => $authorName,
+            'author' => $authorName,
+            'cover_image_path' => $book->cover_image_path,
+            'cover_image_url' => $cover['url'],
+            'cover_view_url' => $cover['url'],
+            'cover_api_url' => route('api.books.cover', ['book' => $book->id]),
+            'cover_url' => $cover['url'],
+            'cover' => $cover['url'],
+            'poster' => $cover['url'],
+            'coverImageUrl' => $cover['url'],
+            'coverImagePath' => $cover['path'],
+            'coverViewUrl' => $cover['url'],
+            'coverApiUrl' => route('api.books.cover', ['book' => $book->id]),
+            'coverUrl' => $cover['url'],
+            'created_at' => $book->created_at,
+            'updated_at' => $book->updated_at,
+        ];
     }
 }
