@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -25,8 +26,11 @@ class BookController extends Controller
         $books = Book::query()
             ->with(['category:id,name'])
             ->where(function (Builder $query) use ($user) {
-                $query->where('author_id', $user->id)
-                    ->orWhere('user_id', $user->id);
+                $query->where('user_id', $user->id);
+
+                if ($this->booksTableHasAuthorId()) {
+                    $query->orWhere('author_id', $user->id);
+                }
             })
             ->latest('id')
             ->get();
@@ -328,8 +332,12 @@ class BookController extends Controller
             return true;
         }
 
-        return (int) $book->author_id === (int) $user->id
-            || (int) $book->user_id === (int) $user->id;
+        if ((int) $book->user_id === (int) $user->id) {
+            return true;
+        }
+
+        return $this->booksTableHasAuthorId()
+            && (int) $book->author_id === (int) $user->id;
     }
 
     private function transformBook(Book $book, ?array $analytics = null): array
@@ -432,5 +440,18 @@ class BookController extends Controller
         }
 
         return ucfirst($value);
+    }
+
+    private function booksTableHasAuthorId(): bool
+    {
+        static $hasAuthorId = null;
+
+        if ($hasAuthorId !== null) {
+            return $hasAuthorId;
+        }
+
+        $hasAuthorId = Schema::hasColumn('books', 'author_id');
+
+        return $hasAuthorId;
     }
 }
