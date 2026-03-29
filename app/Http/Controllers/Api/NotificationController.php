@@ -66,6 +66,29 @@ class NotificationController extends Controller
         ]);
     }
 
+    public function markUserAllAsRead(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized.',
+            ], 401);
+        }
+
+        $role = strtolower(trim((string) $request->input('role', 'all')));
+        $updated = $this->notificationService->markAllAsRead($user, $role);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'All notifications marked as read.',
+            'data' => [
+                'updated_count' => $updated,
+                'role' => $role,
+            ],
+        ]);
+    }
+
     public function send(Request $request): JsonResponse
     {
         $validated = $request->validate([

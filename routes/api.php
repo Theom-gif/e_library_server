@@ -102,6 +102,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/users/{user}/check-achievements', [AchievementController::class, 'checkAchievements']);
 
     Route::get('/user/notifications', [NotificationController::class, 'userIndex']);
+    Route::post('/user/notifications/read-all', [NotificationController::class, 'markUserAllAsRead']);
     Route::post('/user/notifications/{id}/read', [NotificationController::class, 'markUserAsRead']);
 
     Route::get('/favorites', [ReaderFavoriteController::class, 'index']);

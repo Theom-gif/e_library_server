@@ -235,6 +235,23 @@ class NotificationService
         return $this->serializeNotification($notification->refresh());
     }
 
+    public function markAllAsRead(User $user, ?string $role = null): int
+    {
+        $query = UserNotification::query()
+            ->where('user_id', $user->id)
+            ->where('is_read', false);
+
+        if ($role !== null && $role !== 'all') {
+            $query->where('role', $role);
+        }
+
+        return $query->update([
+            'is_read' => true,
+            'read_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
     /**
      * @return array<string, mixed>
      */
