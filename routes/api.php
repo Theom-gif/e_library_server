@@ -80,7 +80,7 @@ Route::get('/books/{book}/ratings', [ReaderReviewController::class, 'ratings'])-
 Route::apiResource('posts', PostController::class);
 
 Route::middleware('auth:sanctum')->group(function () {
-    
+
     Route::post('/logout', [AuthController::class, 'logout']);
 
     Route::post('/books/{book}/comments', [ReaderReviewController::class, 'addComment'])->name('api.books.comments.store');
