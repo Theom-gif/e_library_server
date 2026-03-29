@@ -55,22 +55,28 @@ class BookWorkflowController extends Controller
         ]);
     }
 
-    public function authorBooks(Request $request): JsonResponse
+    public function authorBooks(Request $request, ?int $id = null): JsonResponse
     {
         $validated = $request->validate([
-            'authorId' => 'required_without:author_id|integer|exists:users,id',
-            'author_id' => 'required_without:authorId|integer|exists:users,id',
+            'authorId' => 'nullable|integer|exists:users,id',
+            'author_id' => 'nullable|integer|exists:users,id',
             'per_page' => 'nullable|integer|min:1|max:100',
         ]);
 
-        $authorId = (int) ($validated['authorId'] ?? $validated['author_id']);
+        $authorId = (int) ($id ?? $validated['authorId'] ?? $validated['author_id'] ?? 0);
+
+        if ($authorId <= 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Author account is required.',
+            ], 422);
+        }
+
         $perPage = max(1, min((int) ($validated['per_page'] ?? 15), 100));
 
-        $books = Book::query()
-            ->where(function (Builder $query) use ($authorId) {
-                $query->where('author_id', $authorId)
-                    ->orWhere('user_id', $authorId);
-            })
+        $books = $this->authorOwnedBooksQuery($authorId)
+            ->with(['author:id,firstname,lastname', 'coverImage'])
+            ->where('status', 'approved')
             ->latest('id')
             ->paginate($perPage);
 
@@ -103,6 +109,8 @@ class BookWorkflowController extends Controller
         $query = Book::query()
             ->with(['category:id,name,slug', 'author:id,firstname,lastname', 'coverImage'])
             ->where('status', 'approved');
+
+        $this->applyAuthorFilter($query, $request);
 
         if ($search !== '') {
             $this->applyBookSearch($query, $search);
@@ -712,17 +720,21 @@ class BookWorkflowController extends Controller
 
     private function transformBook(Book $book): array
     {
-        $book->loadMissing('coverImage');
+        $book->loadMissing(['coverImage', 'author']);
         $publicPdfUrl = $this->resolveStoredAssetUrl($book->pdf_path) ?: $book->book_file_url;
         $cover = $book->resolvedCoverAsset();
+        $authorId = $book->author_id ?? $book->user_id;
+        $authorName = $this->resolveBookAuthorName($book);
 
         return [
             'id' => $book->id,
             'title' => $book->title,
             'slug' => $book->slug,
             'description' => $book->description,
-            'author_id' => $book->author_id,
-            'author_name' => $book->author_name,
+            'author_id' => $authorId,
+            'authorId' => $authorId,
+            'author_name' => $authorName,
+            'author' => $authorName,
             'category_id' => $book->category_id,
             'category_name' => $book->category?->name,
             'status' => $book->status,
@@ -981,14 +993,18 @@ class BookWorkflowController extends Controller
 
     private function transformSimpleBook(Book $book): array
     {
-        $book->loadMissing('coverImage');
+        $book->loadMissing(['coverImage', 'author']);
         $cover = $book->resolvedCoverAsset();
+        $authorId = $book->author_id ?? $book->user_id;
+        $authorName = $this->resolveBookAuthorName($book);
 
         return [
             'id' => $book->id,
             'title' => $book->title,
-            'authorId' => $book->author_id ?? $book->user_id,
-            'author_name' => $book->author_name,
+            'authorId' => $authorId,
+            'author_id' => $authorId,
+            'author_name' => $authorName,
+            'author' => $authorName,
             'cover_image_url' => $cover['url'],
             'cover_view_url' => $cover['url'],
             'cover_api_url' => route('api.books.cover', ['book' => $book->id]),
@@ -1009,5 +1025,96 @@ class BookWorkflowController extends Controller
     private function isAbsoluteFilePath(string $value): bool
     {
         return (bool) preg_match('/^(?:[A-Za-z]:[\\\\\\/]|\\\\\\\\)/', $value);
+    }
+
+    private function applyAuthorFilter(Builder $query, Request $request): void
+    {
+        $authorValue = $request->query('author_id', $request->query('authorId'));
+        if ($authorValue === null || $authorValue === '' || !is_numeric($authorValue)) {
+            return;
+        }
+
+        $authorId = (int) $authorValue;
+
+        $query->where(function (Builder $builder) use ($authorId) {
+            if ($this->booksTableHasAuthorId()) {
+                $builder->where('author_id', $authorId);
+
+                if ($this->booksTableHasUserId()) {
+                    $builder->orWhere(function (Builder $fallback) use ($authorId) {
+                        $fallback->whereNull('author_id')
+                            ->where('user_id', $authorId);
+                    });
+                }
+
+                return;
+            }
+
+            if ($this->booksTableHasUserId()) {
+                $builder->where('user_id', $authorId);
+            }
+        });
+    }
+
+    private function authorOwnedBooksQuery(int $authorId): Builder
+    {
+        return Book::query()
+            ->where(function (Builder $builder) use ($authorId) {
+                if ($this->booksTableHasAuthorId()) {
+                    $builder->where('author_id', $authorId);
+
+                    if ($this->booksTableHasUserId()) {
+                        $builder->orWhere(function (Builder $fallback) use ($authorId) {
+                            $fallback->whereNull('author_id')
+                                ->where('user_id', $authorId);
+                        });
+                    }
+
+                    return;
+                }
+
+                if ($this->booksTableHasUserId()) {
+                    $builder->where('user_id', $authorId);
+                }
+            });
+    }
+
+    private function resolveBookAuthorName(Book $book): string
+    {
+        $accountName = trim((string) ($book->author?->firstname.' '.$book->author?->lastname));
+
+        if ($accountName !== '') {
+            return $accountName;
+        }
+
+        $storedName = trim((string) $book->author_name);
+
+        return $storedName !== '' ? $storedName : 'Unknown';
+    }
+
+    private function booksTableHasAuthorId(): bool
+    {
+        static $hasAuthorId = null;
+
+        if ($hasAuthorId !== null) {
+            return $hasAuthorId;
+        }
+
+        $hasAuthorId = \Illuminate\Support\Facades\Schema::hasColumn('books', 'author_id');
+
+        return $hasAuthorId;
+    }
+
+    private function booksTableHasUserId(): bool
+    {
+        static $hasUserId = null;
+
+        if ($hasUserId !== null) {
+            return $hasUserId;
+        }
+
+        $hasUserId = \Illuminate\Support\Facades\Schema::hasColumn('books', 'user_id');
+
+        return $hasUserId;
     }
 }

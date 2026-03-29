@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 
 class AuthorController extends Controller
@@ -121,9 +122,11 @@ class AuthorController extends Controller
 
     private function baseAuthorQuery(int $roleId)
     {
+        $ownerExpression = $this->booksOwnerExpression();
+
         $bookCounts = DB::table('books')
-            ->selectRaw('COALESCE(author_id, user_id) as owner_id, COUNT(*) as books_count')
-            ->groupByRaw('COALESCE(author_id, user_id)');
+            ->selectRaw($ownerExpression.' as owner_id, COUNT(*) as books_count')
+            ->groupByRaw($ownerExpression);
 
         $followerCounts = DB::table('favorite_authors')
             ->selectRaw('author_id, COUNT(*) as followers_count')
@@ -131,8 +134,8 @@ class AuthorController extends Controller
 
         $ratingAverages = DB::table('book_ratings')
             ->join('books', 'books.id', '=', 'book_ratings.book_id')
-            ->selectRaw('COALESCE(books.author_id, books.user_id) as owner_id, COALESCE(AVG(book_ratings.rating), 0) as avg_rating')
-            ->groupByRaw('COALESCE(books.author_id, books.user_id)');
+            ->selectRaw($ownerExpression.' as owner_id, COALESCE(AVG(book_ratings.rating), 0) as avg_rating')
+            ->groupByRaw($ownerExpression);
 
         return User::query()
             ->with(['avatarImage'])
@@ -150,6 +153,21 @@ class AuthorController extends Controller
             ->addSelect(DB::raw('COALESCE(follower_counts.followers_count, 0) as followers_count'))
             ->addSelect(DB::raw('COALESCE(rating_averages.avg_rating, 0) as avg_rating'))
             ->where('role_id', $roleId);
+    }
+
+    private function booksOwnerExpression(): string
+    {
+        static $ownerExpression = null;
+
+        if ($ownerExpression !== null) {
+            return $ownerExpression;
+        }
+
+        $ownerExpression = Schema::hasColumn('books', 'author_id')
+            ? 'COALESCE(books.author_id, books.user_id)'
+            : 'books.user_id';
+
+        return $ownerExpression;
     }
 
     private function transformUser(User $author, array $roleMap): array

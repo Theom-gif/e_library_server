@@ -58,6 +58,7 @@ Route::get('/users/{id}', [AuthorController::class, 'show'])->whereNumber('id')-
 Route::get('/authors', [AuthorController::class, 'index'])->name('api.authors.index');
 Route::get('/authors/by-name/{name}', [AuthorController::class, 'showByName'])->name('api.authors.by-name');
 Route::get('/authors/{id}', [AuthorController::class, 'show'])->whereNumber('id')->name('api.authors.show');
+Route::get('/authors/{id}/books', [BookWorkflowController::class, 'authorBooks'])->whereNumber('id')->name('api.authors.books');
 Route::get('/book', [BookWorkflowController::class, 'approvedBooks']);
 Route::get('/books/discover', [BookWorkflowController::class, 'discoverBooks'])->name('api.books.discover');
 Route::get('/books/{book}', [BookWorkflowController::class, 'show'])->name('api.books.show');
