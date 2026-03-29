@@ -93,7 +93,7 @@ class AuthorController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $this->transformUser($author, $roleMap),
+            'data' => $this->transformUserDetail($author, $roleMap),
         ]);
     }
 
@@ -116,7 +116,7 @@ class AuthorController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $this->transformUser($author, $roleMap),
+            'data' => $this->transformUserDetail($author, $roleMap),
         ]);
     }
 
@@ -200,6 +200,88 @@ class AuthorController extends Controller
             'book_count' => (int) ($author->books_count ?? 0),
             'avg_rating' => $avgRating,
             'average_rating' => $avgRating,
+        ];
+    }
+
+    private function transformUserDetail(User $author, array $roleMap): array
+    {
+        $payload = $this->transformUser($author, $roleMap);
+        $books = $this->authorBooks((int) $author->id);
+
+        $payload['books'] = $books;
+        $payload['books_data'] = $books;
+
+        return $payload;
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function authorBooks(int $authorId): array
+    {
+        return $this->authorBooksQuery($authorId)
+            ->with(['coverImage', 'author:id,firstname,lastname'])
+            ->where('status', 'approved')
+            ->latest('id')
+            ->get()
+            ->map(fn ($book): array => $this->transformAuthorBook($book))
+            ->values()
+            ->all();
+    }
+
+    private function authorBooksQuery(int $authorId)
+    {
+        return \App\Models\Book::query()
+            ->where(function ($builder) use ($authorId) {
+                if (Schema::hasColumn('books', 'author_id')) {
+                    $builder->where('author_id', $authorId);
+
+                    if (Schema::hasColumn('books', 'user_id')) {
+                        $builder->orWhere(function ($fallback) use ($authorId) {
+                            $fallback->whereNull('author_id')
+                                ->where('user_id', $authorId);
+                        });
+                    }
+
+                    return;
+                }
+
+                if (Schema::hasColumn('books', 'user_id')) {
+                    $builder->where('user_id', $authorId);
+                }
+            });
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function transformAuthorBook(\App\Models\Book $book): array
+    {
+        $book->loadMissing(['coverImage', 'author']);
+        $cover = $book->resolvedCoverAsset();
+        $authorName = trim((string) ($book->author?->firstname.' '.$book->author?->lastname));
+        if ($authorName === '') {
+            $authorName = trim((string) $book->author_name) ?: 'Unknown';
+        }
+
+        return [
+            'id' => $book->id,
+            'title' => $book->title,
+            'slug' => $book->slug,
+            'description' => $book->description,
+            'authorId' => $book->author_id ?? $book->user_id,
+            'author_id' => $book->author_id ?? $book->user_id,
+            'author_name' => $authorName,
+            'author' => $authorName,
+            'status' => (string) $book->status,
+            'cover_image_url' => $cover['url'],
+            'cover_view_url' => $cover['url'],
+            'cover_api_url' => route('api.books.cover', ['book' => $book->id]),
+            'cover_url' => $cover['url'],
+            'cover' => $cover['url'],
+            'poster' => $cover['url'],
+            'created_at' => $book->created_at,
+            'updated_at' => $book->updated_at,
         ];
     }
 
