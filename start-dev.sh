@@ -43,4 +43,4 @@ echo "  • DELETE /api/posts/{id}          - Delete a post"
 echo ""
 echo "🌐 Server: http://127.0.0.1:8000"
 echo ""
-php -d upload_max_filesize=50M -d post_max_size=50M -d memory_limit=256M artisan serve --host=127.0.0.1 --port=8000
+php -d upload_max_filesize=64M -d post_max_size=64M -d memory_limit=256M artisan serve --host=127.0.0.1 --port=8000

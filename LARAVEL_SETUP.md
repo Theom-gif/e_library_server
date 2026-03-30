@@ -68,11 +68,11 @@ This is a **Laravel** REST API backend project for VC1. The project is configure
 
 4. **Start development server**:
    ```bash
-   php -d upload_max_filesize=50M -d post_max_size=50M -d memory_limit=256M artisan serve
+   php -d upload_max_filesize=64M -d post_max_size=64M -d memory_limit=256M artisan serve
    ```
    The API will be available at `http://localhost:8000`
 
-   This project accepts book uploads up to 50MB, so the PHP server process must be started with matching upload limits.
+   This project accepts book uploads up to 50MB, so the PHP server process should allow a little extra headroom for multipart request overhead.
 
 ## Available API Endpoints
 
