@@ -41,22 +41,37 @@ class AuthController extends Controller
     // --------------------------------------
     // Login
     // --------------------------------------
-    public function login(LoginRequest $request): JsonResponse
-    {
-        $user = User::where('email', $request->email)->first();
 
-        if (!$user || !Hash::check($request->password, $user->password)) {
-            return $this->errorResponse('Invalid credentials', 'Email or password is incorrect', 401);
-        }
 
-        $user->tokens()->delete();
-        $token = $user->createToken('auth_token')->plainTextToken;
+public function login(LoginRequest $request): JsonResponse
+{
+    $email = $request->email;
+    $password = $request->password;
 
-        return $this->successResponse([
-            'user'  => $user,
-            'token' => $token,
-        ], 'Login successful', 200);
+    $user = User::where('email', $email)->first();
+
+    if (!$user || !Hash::check($password, $user->password)) {
+        return response()->json([
+            'status' => false,
+            'message' => 'Invalid credentials',
+        ], 401);
     }
+
+    // delete old tokens
+    $user->tokens()->delete();
+
+    // create new token
+    $token = $user->createToken('auth_token')->plainTextToken;
+
+    return response()->json([
+        'status' => true,
+        'message' => 'Login successful',
+        'data' => [
+            'user' => $user,
+            'token' => $token,
+        ]
+    ], 200);
+}
 
     // --------------------------------------
     // Logout
