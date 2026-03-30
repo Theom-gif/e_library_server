@@ -91,4 +91,16 @@ class User extends Authenticatable
     {
         return $this->hasMany(UserNotification::class);
     }
+
+    public function followedAuthors(): BelongsToMany
+    {
+        return $this->belongsToMany(self::class, 'favorite_authors', 'user_id', 'author_id')
+            ->withTimestamps();
+    }
+
+    public function authorFollowers(): BelongsToMany
+    {
+        return $this->belongsToMany(self::class, 'favorite_authors', 'author_id', 'user_id')
+            ->withTimestamps();
+    }
 }

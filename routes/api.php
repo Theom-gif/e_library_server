@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\Author\AuthorDashboardController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\AchievementController;
 use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\AuthorFollowController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\BookController;
@@ -124,7 +125,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::match(['post', 'patch', 'put'], '/profile', [ProfileController::class, 'updateProfile']);
         Route::post('/avatar', [ProfileController::class, 'uploadAvatar']);
         Route::get('/reading-activity', [ReadingSessionController::class, 'activity']);
+        Route::get('/following/authors', [AuthorFollowController::class, 'index']);
     });
+
+    Route::post('/authors/{authorId}/follow', [AuthorFollowController::class, 'store'])->whereNumber('authorId');
+    Route::delete('/authors/{authorId}/follow', [AuthorFollowController::class, 'destroy'])->whereNumber('authorId');
 
     Route::prefix('auth')->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);

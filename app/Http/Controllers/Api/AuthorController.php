@@ -42,7 +42,8 @@ class AuthorController extends Controller
         $search = trim((string) ($validated['q'] ?? ''));
         $perPage = (int) ($validated['per_page'] ?? 60);
 
-        $query = $this->baseAuthorQuery($authorRoleId);
+        $viewerId = (int) ($request->user('sanctum')?->id ?? 0);
+        $query = $this->baseAuthorQuery($authorRoleId, $viewerId > 0 ? $viewerId : null);
 
         if ($search !== '') {
             $query->where(function ($authorQuery) use ($search) {
@@ -75,12 +76,13 @@ class AuthorController extends Controller
         ]);
     }
 
-    public function show(int $id): JsonResponse
+    public function show(Request $request, int $id): JsonResponse
     {
         $roleMap = $this->getRoleMap();
         $authorRoleId = $this->resolveRoleIdFromName('author', $roleMap) ?? 2;
+        $viewerId = (int) ($request->user('sanctum')?->id ?? 0);
 
-        $author = $this->baseAuthorQuery($authorRoleId)
+        $author = $this->baseAuthorQuery($authorRoleId, $viewerId > 0 ? $viewerId : null)
             ->where('users.id', $id)
             ->first();
 
@@ -97,13 +99,14 @@ class AuthorController extends Controller
         ]);
     }
 
-    public function showByName(string $name): JsonResponse
+    public function showByName(Request $request, string $name): JsonResponse
     {
         $roleMap = $this->getRoleMap();
         $authorRoleId = $this->resolveRoleIdFromName('author', $roleMap) ?? 2;
         $needle = mb_strtolower(trim($name));
+        $viewerId = (int) ($request->user('sanctum')?->id ?? 0);
 
-        $author = $this->baseAuthorQuery($authorRoleId)
+        $author = $this->baseAuthorQuery($authorRoleId, $viewerId > 0 ? $viewerId : null)
             ->whereRaw("LOWER(CONCAT(COALESCE(firstname, ''), ' ', COALESCE(lastname, ''))) = ?", [$needle])
             ->first();
 
@@ -120,7 +123,7 @@ class AuthorController extends Controller
         ]);
     }
 
-    private function baseAuthorQuery(int $roleId)
+    private function baseAuthorQuery(int $roleId, ?int $viewerId = null)
     {
         $ownerExpression = $this->booksOwnerExpression();
 
@@ -143,7 +146,7 @@ class AuthorController extends Controller
             })
             ->groupByRaw($ownerExpression);
 
-        return User::query()
+        $query = User::query()
             ->with(['avatarImage'])
             ->select('users.*')
             ->leftJoinSub($bookCounts, 'book_counts', function ($join) {
@@ -159,6 +162,20 @@ class AuthorController extends Controller
             ->addSelect(DB::raw('COALESCE(follower_counts.followers_count, 0) as followers_count'))
             ->addSelect(DB::raw('COALESCE(rating_averages.avg_rating, 0) as avg_rating'))
             ->where('role_id', $roleId);
+
+        if ($viewerId !== null) {
+            $viewerFollows = DB::table('favorite_authors')
+                ->selectRaw('author_id, 1 as is_following')
+                ->where('user_id', $viewerId);
+
+            $query->leftJoinSub($viewerFollows, 'viewer_follows', function ($join) {
+                $join->on('viewer_follows.author_id', '=', 'users.id');
+            })->addSelect(DB::raw('COALESCE(viewer_follows.is_following, 0) as is_following'));
+        } else {
+            $query->addSelect(DB::raw('0 as is_following'));
+        }
+
+        return $query;
     }
 
     private function booksOwnerExpression(): string
@@ -202,6 +219,7 @@ class AuthorController extends Controller
             'avatar_path' => $avatar['path'],
             'followers_count' => (int) ($author->followers_count ?? 0),
             'followers' => (int) ($author->followers_count ?? 0),
+            'is_following' => (bool) ($author->is_following ?? false),
             'books_count' => (int) ($author->books_count ?? 0),
             'book_count' => (int) ($author->books_count ?? 0),
             'avg_rating' => $avgRating,
