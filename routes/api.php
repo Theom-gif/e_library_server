@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\Admin\AdminCategoryController;
+use App\Http\Controllers\Api\Admin\AdminAuthorController;
 use App\Http\Controllers\Api\Admin\AdminDashboardController;
 use App\Http\Controllers\Api\Admin\AdminReaderLeaderboardController;
 use App\Http\Controllers\Api\Admin\AdminSettingsController;
@@ -184,6 +185,13 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(functi
 
     Route::get('/notifications', [NotificationController::class, 'adminIndex']);
     Route::post('/notifications/send', [NotificationController::class, 'send']);
+
+    Route::get('/authors', [AdminAuthorController::class, 'index']);
+    Route::post('/authors', [AdminAuthorController::class, 'store']);
+    Route::get('/authors/{id}', [AdminAuthorController::class, 'show'])->whereNumber('id');
+    Route::match(['put', 'patch'], '/authors/{id}', [AdminAuthorController::class, 'update'])->whereNumber('id');
+    Route::delete('/authors/{id}', [AdminAuthorController::class, 'destroy'])->whereNumber('id');
+    Route::post('/authors/{id}/resend-invitation', [AdminAuthorController::class, 'resendInvitation'])->whereNumber('id');
 
     Route::get('/categories', [AdminCategoryController::class, 'index']);
     Route::post('/categories', [AdminCategoryController::class, 'store']);

@@ -35,6 +35,10 @@ class User extends Authenticatable
         'bio',
         'facebook_url',
         'avatar',
+        'is_active',
+        'invitation_token',
+        'invitation_sent_at',
+        'invitation_accepted_at',
     ];
 
     /**
@@ -57,6 +61,9 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'is_active' => 'boolean',
+            'invitation_sent_at' => 'datetime',
+            'invitation_accepted_at' => 'datetime',
         ];
     }
 
