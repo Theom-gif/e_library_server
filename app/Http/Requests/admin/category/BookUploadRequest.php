@@ -33,8 +33,8 @@ class BookUploadRequest extends FormRequest
             'user_id' => 'nullable|integer',
             'cover_image' => 'nullable|image|max:10240',
             'coverImage' => 'nullable|image|max:10240',
-            'book_file' => 'nullable|file|max:40960',
-            'bookFile' => 'nullable|file|max:40960',
+            'book_file' => 'nullable|file|max:51200',
+            'bookFile' => 'nullable|file|max:51200',
             'cover_image_url' => 'nullable|string|max:2048',
             'coverImageUrl' => 'nullable|string|max:2048',
             'book_file_url' => 'nullable|string|max:4096',
@@ -114,7 +114,7 @@ class BookUploadRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'book_file.max' => 'Book file is too large (max 40MB).',
+            'book_file.max' => 'Book file is too large (max 50MB).',
             'bookFile.max' => 'Book file is too large (max 40MB).',
         ];
     }
