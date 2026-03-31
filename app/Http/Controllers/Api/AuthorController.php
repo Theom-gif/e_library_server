@@ -8,7 +8,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\Storage;
 
 class AuthorController extends Controller
 {
@@ -209,6 +208,7 @@ class AuthorController extends Controller
             'role_name' => $roleName,
             'role' => $roleName,
             'bio' => $author->bio,
+            'profile_image_url' => $avatar['url'],
             'avatar' => $avatar['url'],
             'avatar_url' => $avatar['url'],
             'photo' => $avatar['url'],
@@ -304,53 +304,7 @@ class AuthorController extends Controller
 
     private function resolveAvatarData(User $author): array
     {
-        if ($author->avatarImage) {
-            return [
-                'path' => null,
-                'url' => route('avatars.show', [
-                    'userId' => $author->id,
-                    'v' => optional($author->avatarImage->updated_at)->timestamp,
-                ]),
-            ];
-        }
-
-        $raw = trim((string) $author->avatar);
-        if ($raw === '') {
-            return ['path' => null, 'url' => null];
-        }
-
-        if (preg_match('/^(https?:|data:)/i', $raw)) {
-            return ['path' => null, 'url' => $raw];
-        }
-
-        $normalized = $this->normalizeAsset($raw);
-
-        return [
-            'path' => $normalized['path'] ?? null,
-            'url' => $normalized['url'] ?? null,
-        ];
-    }
-
-    private function normalizeAsset(string $value): array
-    {
-        $value = trim($value);
-
-        if ($value === '') {
-            return ['path' => null, 'url' => null];
-        }
-
-        if (preg_match('/^(https?:|data:)/i', $value)) {
-            return ['path' => null, 'url' => $value];
-        }
-
-        if (preg_match('/^(?:[A-Za-z]:[\\\\\\/]|\\\\\\\\)/', $value)) {
-            return ['path' => null, 'url' => null];
-        }
-
-        return [
-            'path' => $value,
-            'url' => $this->toAbsoluteUrl(Storage::disk('public')->url($value)),
-        ];
+        return $author->resolveProfileImage();
     }
 
     private function getRoleMap(): array
@@ -392,17 +346,4 @@ class AuthorController extends Controller
         return $roleName === 'author' ? 2 : null;
     }
 
-    private function toAbsoluteUrl(?string $value): ?string
-    {
-        $value = trim((string) $value);
-        if ($value === '') {
-            return null;
-        }
-
-        if (preg_match('/^(https?:|data:)/i', $value)) {
-            return $value;
-        }
-
-        return url($value);
-    }
 }

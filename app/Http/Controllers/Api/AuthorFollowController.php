@@ -8,7 +8,6 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 
 class AuthorFollowController extends Controller
 {
@@ -138,7 +137,10 @@ class AuthorFollowController extends Controller
         return [
             'id' => $author->id,
             'name' => $fullName !== '' ? $fullName : 'Unknown',
+            'profile_image_url' => $avatar['url'],
             'photo' => $avatar['url'],
+            'photo_url' => $avatar['url'],
+            'avatar_url' => $avatar['url'],
             'followers_count' => (int) ($author->followers_count ?? 0),
             'is_following' => true,
         ];
@@ -149,46 +151,6 @@ class AuthorFollowController extends Controller
      */
     private function resolveAvatarData(User $author): array
     {
-        if ($author->avatarImage) {
-            return [
-                'path' => null,
-                'url' => route('avatars.show', [
-                    'userId' => $author->id,
-                    'v' => optional($author->avatarImage->updated_at)->timestamp,
-                ]),
-            ];
-        }
-
-        $raw = trim((string) $author->avatar);
-        if ($raw === '') {
-            return ['path' => null, 'url' => null];
-        }
-
-        if (preg_match('/^(https?:|data:)/i', $raw)) {
-            return ['path' => null, 'url' => $raw];
-        }
-
-        if (preg_match('/^(?:[A-Za-z]:[\\\\\\/]|\\\\\\\\)/', $raw)) {
-            return ['path' => null, 'url' => null];
-        }
-
-        return [
-            'path' => $raw,
-            'url' => $this->toAbsoluteUrl(Storage::disk('public')->url($raw)),
-        ];
-    }
-
-    private function toAbsoluteUrl(?string $value): ?string
-    {
-        $value = trim((string) $value);
-        if ($value === '') {
-            return null;
-        }
-
-        if (preg_match('/^(https?:|data:)/i', $value)) {
-            return $value;
-        }
-
-        return url($value);
+        return $author->resolveProfileImage();
     }
 }

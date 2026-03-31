@@ -21,7 +21,7 @@ class ProfileController extends Controller
 {
     public function getCurrentUser(Request $request): JsonResponse
     {
-        if ($request->is('api/me') || $request->is('api/me/profile')) {
+        if ($request->is('api/me') || $request->is('api/me/profile') || $request->is('api/auth/me')) {
             return $this->successResponse(
                 $this->buildProfilePayload($request->user()),
                 'Profile retrieved successfully',
@@ -60,8 +60,14 @@ class ProfileController extends Controller
                     return $this->validationErrorResponse($upload['errors']);
                 }
 
-                $payload['avatar'] = $this->buildAvatarUrl($request->user(), $upload['updated_at']);
+                $payload['avatar'] = $request->user()->fresh('avatarImage')->profileImageUrl();
                 Log::info('updateProfile | stored avatar in db', ['user_id' => $request->user()->id]);
+            } elseif ($request->exists('avatar') || $request->exists('photo')) {
+                $avatarValue = $this->extractAvatarValue($request);
+
+                if ($avatarValue !== null) {
+                    $payload['avatar'] = $this->storeAvatarReference($request->user(), $avatarValue);
+                }
             }
 
             Log::info('updateProfile | final payload', $payload);
@@ -143,6 +149,7 @@ class ProfileController extends Controller
             'bio' => $user->bio,
             'facebook_url' => $user->facebook_url,
             'avatar' => $user->avatar,
+            'profile_image_url' => $photoUrl,
             'avatar_url' => $photoUrl,
             'photo' => $photoUrl,
             'photo_url' => $photoUrl,
@@ -172,7 +179,11 @@ class ProfileController extends Controller
             return null;
         }
 
-        return PublicImage::normalize($value, 'avatars')['url'] ?? $value;
+        if (preg_match('/^(https?:|data:)/i', $value)) {
+            return $value;
+        }
+
+        return url(ltrim((string) (PublicImage::normalize($value, 'avatars')['url'] ?? $value), '/'));
     }
 
     private function extractAvatarFile(Request $request): ?UploadedFile
@@ -188,6 +199,19 @@ class ProfileController extends Controller
         }
 
         return $file instanceof UploadedFile ? $file : null;
+    }
+
+    private function extractAvatarValue(Request $request): ?string
+    {
+        foreach (['avatar', 'photo'] as $key) {
+            $value = $request->input($key);
+
+            if (is_string($value) && trim($value) !== '') {
+                return trim($value);
+            }
+        }
+
+        return null;
     }
 
     private function storeValidatedAvatar(User $user, UploadedFile $file): array
@@ -233,6 +257,7 @@ class ProfileController extends Controller
         $profile = $this->buildProfilePayload($user);
 
         return [
+            'profile_image_url' => $profile['user']['profile_image_url'],
             'photo' => $profile['user']['photo'],
             'photo_url' => $profile['user']['photo_url'],
             'avatar' => $profile['user']['avatar'],
@@ -244,18 +269,7 @@ class ProfileController extends Controller
 
     private function buildAvatarUrl(User $user, $updatedAt = null): ?string
     {
-        if (!$updatedAt && !$user->relationLoaded('avatarImage')) {
-            $user->loadMissing('avatarImage');
-            $updatedAt = $user->avatarImage?->updated_at;
-        }
-
-        if (!$updatedAt) {
-            return $this->resolveAvatarUrl($user->avatar);
-        }
-
-        $version = optional($updatedAt)->timestamp;
-
-        return route('avatars.show', ['userId' => $user->id, 'v' => $version], false);
+        return $user->profileImageUrl() ?? $this->resolveAvatarUrl($user->avatar);
     }
 
     public function uploadAvatar(Request $request): JsonResponse
@@ -274,7 +288,7 @@ class ProfileController extends Controller
             }
 
             $user = $request->user();
-            $user->avatar = $this->buildAvatarUrl($user, $upload['updated_at']);
+            $user->avatar = $user->fresh('avatarImage')->profileImageUrl();
             $user->save();
 
             return $this->successResponse($this->buildAvatarPayload($user->fresh()), 'Avatar uploaded successfully', 200);
@@ -312,6 +326,16 @@ class ProfileController extends Controller
             'Cache-Control' => 'public, max-age=86400',
             'ETag' => $etag,
         ]);
+    }
+
+    private function storeAvatarReference(User $user, string $value): string
+    {
+        $normalized = PublicImage::normalize($value, 'avatars');
+        $storedValue = $normalized['path'] ?? $normalized['url'] ?? $value;
+
+        $user->avatarImage()->delete();
+
+        return $storedValue;
     }
 
 }

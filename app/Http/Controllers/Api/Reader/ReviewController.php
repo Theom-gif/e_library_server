@@ -66,6 +66,7 @@ class ReviewController extends Controller
                     'name' => trim(($item->firstname ?? '').' '.($item->lastname ?? '')),
                     'firstname' => $item->firstname,
                     'lastname' => $item->lastname,
+                    'profile_image_url' => $avatarUrl,
                     'avatar' => $avatarUrl,
                     'avatar_url' => $avatarUrl,
                     'photo' => $avatarUrl,
@@ -161,16 +162,21 @@ class ReviewController extends Controller
                 'updated_at' => $this->asIsoString($comment->updated_at),
                 'created_at_human' => $this->asHumanString($comment->created_at),
                 'updated_at_human' => $this->asHumanString($comment->updated_at),
-                'user' => [
+                'user' => (function () use ($comment): array {
+                    $avatarUrl = $this->buildAvatarUrl((int) $comment->user_id, $comment->avatar_updated_at ?? null, $comment->avatar ?? null);
+
+                    return [
                     'id' => (int) $comment->user_id,
                     'name' => trim(($comment->firstname ?? '').' '.($comment->lastname ?? '')),
                     'firstname' => $comment->firstname,
                     'lastname' => $comment->lastname,
-                    'avatar' => $this->buildAvatarUrl((int) $comment->user_id, $comment->avatar_updated_at ?? null, $comment->avatar ?? null),
-                    'avatar_url' => $this->buildAvatarUrl((int) $comment->user_id, $comment->avatar_updated_at ?? null, $comment->avatar ?? null),
-                    'photo' => $this->buildAvatarUrl((int) $comment->user_id, $comment->avatar_updated_at ?? null, $comment->avatar ?? null),
-                    'photo_url' => $this->buildAvatarUrl((int) $comment->user_id, $comment->avatar_updated_at ?? null, $comment->avatar ?? null),
-                ],
+                    'profile_image_url' => $avatarUrl,
+                    'avatar' => $avatarUrl,
+                    'avatar_url' => $avatarUrl,
+                    'photo' => $avatarUrl,
+                    'photo_url' => $avatarUrl,
+                    ];
+                })(),
             ],
         ], 201);
     }
@@ -675,6 +681,7 @@ class ReviewController extends Controller
             'user' => [
                 'id' => $ownerId,
                 'name' => trim(($item->firstname ?? '').' '.($item->lastname ?? '')),
+                'profile_image_url' => $this->buildAvatarUrl($ownerId, $item->avatar_updated_at ?? null, $item->avatar ?? null),
                 'avatar' => $this->buildAvatarUrl($ownerId, $item->avatar_updated_at ?? null, $item->avatar ?? null),
                 'avatar_url' => $this->buildAvatarUrl($ownerId, $item->avatar_updated_at ?? null, $item->avatar ?? null),
                 'photo' => $this->buildAvatarUrl($ownerId, $item->avatar_updated_at ?? null, $item->avatar ?? null),
@@ -696,7 +703,17 @@ class ReviewController extends Controller
 
     private function resolveAvatarUrl(?string $avatar): ?string
     {
-        return PublicImage::normalize($avatar, 'avatars')['url'] ?? null;
+        $value = trim((string) (PublicImage::normalize($avatar, 'avatars')['url'] ?? ''));
+
+        if ($value === '') {
+            return null;
+        }
+
+        if (preg_match('/^(https?:|data:)/i', $value)) {
+            return $value;
+        }
+
+        return url(ltrim($value, '/'));
     }
 
     private function buildAvatarUrl(int $userId, $updatedAt = null, ?string $fallbackAvatar = null): ?string
@@ -704,7 +721,7 @@ class ReviewController extends Controller
         if ($updatedAt) {
             $version = Carbon::parse($updatedAt)->timestamp;
 
-            return route('avatars.show', ['userId' => $userId, 'v' => $version], false);
+            return route('avatars.show', ['userId' => $userId, 'v' => $version]);
         }
 
         return $this->resolveAvatarUrl($fallbackAvatar);

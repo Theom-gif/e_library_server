@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\PublicImage;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -70,6 +71,65 @@ class User extends Authenticatable
     public function avatarImage(): HasOne
     {
         return $this->hasOne(UserAvatar::class);
+    }
+
+    /**
+     * @return array{path: ?string, url: ?string}
+     */
+    public function resolveProfileImage(): array
+    {
+        $this->loadMissing('avatarImage');
+
+        if ($this->avatarImage) {
+            return [
+                'path' => null,
+                'url' => route('avatars.show', [
+                    'userId' => $this->id,
+                    'v' => optional($this->avatarImage->updated_at)->timestamp,
+                ]),
+            ];
+        }
+
+        $raw = trim((string) $this->avatar);
+        if ($raw === '') {
+            return ['path' => null, 'url' => null];
+        }
+
+        if (preg_match('/^(https?:|data:)/i', $raw)) {
+            return ['path' => null, 'url' => $raw];
+        }
+
+        if (preg_match('/^(?:[A-Za-z]:[\\\\\\/]|\\\\\\\\)/', $raw)) {
+            return ['path' => null, 'url' => null];
+        }
+
+        $normalized = PublicImage::normalize($raw, 'avatars');
+        $path = $normalized['path'] ?? null;
+        $url = $normalized['url'] ?? null;
+
+        return [
+            'path' => $path,
+            'url' => $this->toAbsoluteUrl($url),
+        ];
+    }
+
+    public function profileImageUrl(): ?string
+    {
+        return $this->resolveProfileImage()['url'];
+    }
+
+    private function toAbsoluteUrl(?string $value): ?string
+    {
+        $value = trim((string) $value);
+        if ($value === '') {
+            return null;
+        }
+
+        if (preg_match('/^(https?:|data:)/i', $value)) {
+            return $value;
+        }
+
+        return url(ltrim($value, '/'));
     }
 
     public function books(): HasMany
