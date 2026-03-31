@@ -20,9 +20,18 @@ class DownloadController extends Controller
             ->map(function (OfflineDownload $download) {
                 return [
                     'id' => $download->id,
+                    'book_id' => $download->book_id,
+                    'user_id' => $download->user_id,
+                    'local_identifier' => $download->local_identifier,
                     'downloaded_at' => $download->downloaded_at?->toIso8601String(),
+                    'last_synced_at' => $download->last_synced_at?->toIso8601String(),
                     'sync_status' => $download->sync_status,
-                    'book' => $download->book?->toApiArray(),
+                    'book' => $download->book
+                        ? array_merge($download->book->toApiArray(), [
+                            'local_identifier' => $download->local_identifier,
+                            'is_downloaded' => true,
+                        ])
+                        : null,
                 ];
             })
             ->values();
@@ -61,8 +70,15 @@ class DownloadController extends Controller
             'data' => [
                 'id' => $download->id,
                 'book_id' => $download->book_id,
+                'user_id' => $download->user_id,
+                'local_identifier' => $download->local_identifier,
                 'downloaded_at' => $download->downloaded_at?->toIso8601String(),
-                'book' => $book->toApiArray(),
+                'last_synced_at' => $download->last_synced_at?->toIso8601String(),
+                'sync_status' => $download->sync_status,
+                'book' => array_merge($book->toApiArray(), [
+                    'local_identifier' => $download->local_identifier,
+                    'is_downloaded' => true,
+                ]),
             ],
         ], 201);
     }
