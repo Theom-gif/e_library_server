@@ -62,6 +62,7 @@ class DownloadController extends Controller
                 'id' => $download->id,
                 'book_id' => $download->book_id,
                 'downloaded_at' => $download->downloaded_at?->toIso8601String(),
+                'book' => $book->toApiArray(),
             ],
         ], 201);
     }

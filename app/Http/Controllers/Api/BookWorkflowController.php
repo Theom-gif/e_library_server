@@ -353,6 +353,31 @@ class BookWorkflowController extends Controller
         ]);
     }
 
+    public function downloadPdf(Request $request, Book $book): BinaryFileResponse|JsonResponse
+    {
+        if (!$this->canViewBook($request->user(), $book)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Book not found.',
+            ], 404);
+        }
+
+        if (!$book->pdf_path || !Storage::disk('public')->exists($book->pdf_path)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'PDF file not found.',
+            ], 404);
+        }
+
+        $path = Storage::disk('public')->path($book->pdf_path);
+        $filename = $book->original_pdf_name ?: basename($book->pdf_path);
+
+        return response()->download($path, $filename, [
+            'Content-Type' => $book->pdf_mime_type ?: (Storage::disk('public')->mimeType($book->pdf_path) ?: 'application/pdf'),
+            'Access-Control-Expose-Headers' => 'Content-Length, Content-Disposition, Content-Type',
+        ]);
+    }
+
     public function resolveDownload(Request $request, Book $book): JsonResponse
     {
         if ($book->status !== 'approved') {
@@ -367,11 +392,12 @@ class BookWorkflowController extends Controller
 
         if ($localPath !== null && Storage::disk('public')->exists($localPath)) {
             $resolvedMimeType = $book->pdf_mime_type ?: (Storage::disk('public')->mimeType($localPath) ?: 'application/pdf');
+            $relativeDownloadUrl = route('api.books.download.file', ['book' => $book->id], false);
             $relativeReadUrl = route('api.books.read', ['book' => $book->id], false);
             $payload = [
-                'download_url' => $relativeReadUrl,
+                'download_url' => $relativeDownloadUrl,
                 'stream_url' => $relativeReadUrl,
-                'url' => $relativeReadUrl,
+                'url' => $relativeDownloadUrl,
                 'mime_type' => $resolvedMimeType,
                 'file_name' => $book->original_pdf_name ?: basename($localPath),
                 'size_bytes' => $book->file_size_bytes ?: Storage::disk('public')->size($localPath),

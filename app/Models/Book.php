@@ -137,6 +137,7 @@ class Book extends Model
         $bookUrl = $this->resolveAssetUrl($this->pdf_path ?? null) ?? ($item['book_file_url'] ?? null);
         $coverApiUrl = $this->id ? route('api.books.cover', ['book' => $this->id]) : null;
         $readApiUrl = $this->id ? route('api.books.read', ['book' => $this->id]) : null;
+        $downloadApiUrl = $this->id ? route('api.books.download.file', ['book' => $this->id]) : null;
 
         // Keep legacy keys for existing frontend pages while using new schema fields.
         $item['author'] = $item['author'] ?? $this->author_name;
@@ -161,6 +162,10 @@ class Book extends Model
         $item['file_url'] = $item['book_file_url'];
         $item['pdf_url'] = $item['book_file_url'];
         $item['read_url'] = $readApiUrl;
+        $item['stream_url'] = $readApiUrl;
+        $item['download_url'] = $downloadApiUrl;
+        $item['offline_read_url'] = $readApiUrl;
+        $item['download_file_url'] = $downloadApiUrl;
 
         return $item;
     }

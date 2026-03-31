@@ -65,6 +65,7 @@ Route::get('/book', [BookWorkflowController::class, 'approvedBooks']);
 Route::get('/books/discover', [BookWorkflowController::class, 'discoverBooks'])->name('api.books.discover');
 Route::get('/books/{book}', [BookWorkflowController::class, 'show'])->name('api.books.show');
 Route::get('/books/{book}/read', [BookWorkflowController::class, 'readPdf'])->name('api.books.read');
+Route::get('/books/{book}/download-file', [BookWorkflowController::class, 'downloadPdf'])->name('api.books.download.file');
 Route::get('/books/{book}/cover', [BookWorkflowController::class, 'viewCover'])->name('api.books.cover');
 Route::post('/books/{book}/download', [BookWorkflowController::class, 'resolveDownload'])->name('api.books.download.resolve');
 Route::get('/achievements', [AchievementController::class, 'index']);
@@ -166,6 +167,7 @@ Route::middleware(['auth:sanctum', 'role:author'])->prefix('author')->group(func
     Route::get('/books/research', [BookWorkflowController::class, 'authorResearch']);
     Route::get('/books/{book}', [BookWorkflowController::class, 'show']);
     Route::get('/books/{book}/read', [BookWorkflowController::class, 'readPdf']);
+    Route::get('/books/{book}/download-file', [BookWorkflowController::class, 'downloadPdf']);
     Route::get('/books/{book}/cover', [BookWorkflowController::class, 'viewCover']);
 });
 
