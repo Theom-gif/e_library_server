@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
 
 class AdminAuthorController extends Controller
@@ -78,8 +79,19 @@ class AdminAuthorController extends Controller
             $validated = $request->validate([
                 'name' => 'required|string|min:2|max:255',
                 'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')],
+                'password' => [
+                    'required',
+                    'confirmed',
+                    Password::min(8)
+                        ->mixedCase()
+                        ->numbers()
+                        ->symbols(),
+                ],
                 'bio' => 'nullable|string|max:500',
                 'profile_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
+            ], [
+                'password.required' => 'Password is required.',
+                'password.confirmed' => 'Passwords do not match.',
             ]);
 
             $profileImagePath = $this->storeProfileImage($request, $validated['name']);
@@ -90,7 +102,7 @@ class AdminAuthorController extends Controller
                 'firstname' => $firstName,
                 'lastname' => $lastName,
                 'email' => $validated['email'],
-                'password' => Hash::make(Str::password(32)),
+                'password' => Hash::make($validated['password']),
                 'bio' => $validated['bio'] ?? null,
                 'avatar' => $profileImagePath,
                 'is_active' => false,
