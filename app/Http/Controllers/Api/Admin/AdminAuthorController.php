@@ -90,7 +90,9 @@ class AdminAuthorController extends Controller
             new AuthorStatusMail(
                 $user,
                 'Approved',
-                'Congratulations! Your author account has been approved.'
+                'Congratulations! Your author account has been approved.',
+                'https://e-library-portal.app/login',
+                'Click Here To Go In As Author'
             )
         );
 
@@ -113,7 +115,9 @@ class AdminAuthorController extends Controller
             new AuthorStatusMail(
                 $user,
                 'Rejected',
-                'Sorry, your author application was rejected. Please contact support.'
+                'Sorry, your author application was rejected. Please contact support.',
+                'https://e-library-portal.app/login',
+                'Go To Author Portal'
             )
         );
 
