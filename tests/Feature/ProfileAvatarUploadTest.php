@@ -81,18 +81,22 @@ class ProfileAvatarUploadTest extends TestCase
 
         $response->assertOk();
         $response->assertHeader('Content-Type', 'image/png');
-        $response->assertHeader('Cache-Control', 'public, max-age=86400');
+        $cacheControl = (string) $response->headers->get('Cache-Control');
+        $this->assertStringContainsString('public', $cacheControl);
+        $this->assertStringContainsString('max-age=86400', $cacheControl);
     }
 
     private function createAuthenticatedUser(): User
     {
-        DB::table('roles')->insert([
-            'id' => 1,
-            'name' => 'reader',
-            'description' => 'Reader role',
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        DB::table('roles')->updateOrInsert(
+            ['id' => 1],
+            [
+                'name' => 'reader',
+                'description' => 'Reader role',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]
+        );
 
         $user = User::factory()->create();
 

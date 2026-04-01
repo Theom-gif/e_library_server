@@ -72,7 +72,7 @@ class AuthorController extends Controller
                 'per_page' => $authors->perPage(),
                 'total' => $authors->total(),
             ],
-        ]);
+        ], 200, [], JSON_PRESERVE_ZERO_FRACTION);
     }
 
     public function show(Request $request, int $id): JsonResponse
@@ -95,7 +95,7 @@ class AuthorController extends Controller
         return response()->json([
             'success' => true,
             'data' => $this->transformUserDetail($author, $roleMap),
-        ]);
+        ], 200, [], JSON_PRESERVE_ZERO_FRACTION);
     }
 
     public function showByName(Request $request, string $name): JsonResponse
@@ -119,7 +119,7 @@ class AuthorController extends Controller
         return response()->json([
             'success' => true,
             'data' => $this->transformUserDetail($author, $roleMap),
-        ]);
+        ], 200, [], JSON_PRESERVE_ZERO_FRACTION);
     }
 
     private function baseAuthorQuery(int $roleId, ?int $viewerId = null)

@@ -77,6 +77,13 @@ class PublicImage
 
         $localPath = str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $value);
         if (!file_exists($localPath) || !is_file($localPath)) {
+            if (!preg_match('/^(?:[A-Za-z]:[\\\\\\/]|\\\\\\\\)/', $value)) {
+                return [
+                    'path' => $value,
+                    'url' => Storage::disk('public')->url($value),
+                ];
+            }
+
             return [
                 'path' => null,
                 'url' => $value,

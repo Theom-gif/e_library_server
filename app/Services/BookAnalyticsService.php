@@ -52,7 +52,7 @@ class BookAnalyticsService
         $monthlyReads = DB::table('reading_sessions')
             ->select('book_id', DB::raw('COUNT(*) as monthly_reads'))
             ->whereIn('book_id', $bookIds)
-            ->where('started_at', '>=', CarbonImmutable::now()->startOfMonth())
+            ->where('started_at', '>=', CarbonImmutable::now()->subDays(30))
             ->groupBy('book_id')
             ->pluck('monthly_reads', 'book_id');
 

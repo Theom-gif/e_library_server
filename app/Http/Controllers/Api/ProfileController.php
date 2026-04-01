@@ -183,7 +183,7 @@ class ProfileController extends Controller
             return $value;
         }
 
-        return url(ltrim((string) (PublicImage::normalize($value, 'avatars')['url'] ?? $value), '/'));
+        return '/'.ltrim((string) (PublicImage::normalize($value, 'avatars')['url'] ?? $value), '/');
     }
 
     private function extractAvatarFile(Request $request): ?UploadedFile

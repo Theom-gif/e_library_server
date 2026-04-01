@@ -107,10 +107,20 @@ class AdminAuthorControllerTest extends TestCase
 
     private function seedRoles(): void
     {
-        DB::table('roles')->insert([
-            ['id' => 1, 'name' => 'Admin', 'description' => 'Administrator', 'created_at' => now(), 'updated_at' => now()],
-            ['id' => 2, 'name' => 'Author', 'description' => 'Author', 'created_at' => now(), 'updated_at' => now()],
-            ['id' => 3, 'name' => 'User', 'description' => 'User', 'created_at' => now(), 'updated_at' => now()],
-        ]);
+        foreach ([
+            ['id' => 1, 'name' => 'Admin', 'description' => 'Administrator'],
+            ['id' => 2, 'name' => 'Author', 'description' => 'Author'],
+            ['id' => 3, 'name' => 'User', 'description' => 'User'],
+        ] as $role) {
+            DB::table('roles')->updateOrInsert(
+                ['id' => $role['id']],
+                [
+                    'name' => $role['name'],
+                    'description' => $role['description'],
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]
+            );
+        }
     }
 }

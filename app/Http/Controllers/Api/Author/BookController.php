@@ -41,7 +41,7 @@ class BookController extends Controller
             'data' => $books->map(function (Book $book) use ($analyticsByBookId) {
                 return $this->transformBook($book, $analyticsByBookId[$book->id] ?? null);
             })->values(),
-        ]);
+        ], 200, [], JSON_PRESERVE_ZERO_FRACTION);
     }
 
     public function show(Request $request, Book $book): JsonResponse
@@ -55,7 +55,7 @@ class BookController extends Controller
         return response()->json($this->transformBook(
             $book->load(['category']),
             app(BookAnalyticsService::class)->forBook($book)
-        ));
+        ), 200, [], JSON_PRESERVE_ZERO_FRACTION);
     }
 
     public function analytics(Request $request, Book $book, BookAnalyticsService $analyticsService): JsonResponse
@@ -67,7 +67,10 @@ class BookController extends Controller
         }
 
         return response()->json(
-            $analyticsService->forBook($book)
+            $analyticsService->forBook($book),
+            200,
+            [],
+            JSON_PRESERVE_ZERO_FRACTION
         );
     }
 
@@ -139,7 +142,7 @@ class BookController extends Controller
         return response()->json($this->transformBook(
             $book->fresh(['category']),
             app(BookAnalyticsService::class)->forBook($book)
-        ), 201);
+        ), 201, [], JSON_PRESERVE_ZERO_FRACTION);
     }
 
     public function update(UpdateBookRequest $request, Book $book): JsonResponse
@@ -214,7 +217,7 @@ class BookController extends Controller
         return response()->json($this->transformBook(
             $book->fresh(['category']),
             app(BookAnalyticsService::class)->forBook($book)
-        ));
+        ), 200, [], JSON_PRESERVE_ZERO_FRACTION);
     }
 
     public function destroy(Request $request, Book $book): JsonResponse

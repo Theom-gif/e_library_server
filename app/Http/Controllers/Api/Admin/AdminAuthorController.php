@@ -130,7 +130,7 @@ class AdminAuthorController extends Controller
                 'name' => 'required|string|min:2|max:255',
                 'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')],
                 'password' => [
-                    'required',
+                    'nullable',
                     'confirmed',
                     Password::min(8)
                         ->mixedCase()
@@ -146,13 +146,14 @@ class AdminAuthorController extends Controller
 
             $profileImagePath = $this->storeProfileImage($request, $validated['name']);
             [$firstName, $lastName] = $this->splitName($validated['name']);
+            $password = $validated['password'] ?? Str::password(16);
 
             $author = User::query()->create([
                 'role_id' => self::AUTHOR_ROLE_ID,
                 'firstname' => $firstName,
                 'lastname' => $lastName,
                 'email' => $validated['email'],
-                'password' => Hash::make($validated['password']),
+                'password' => Hash::make($password),
                 'bio' => $validated['bio'] ?? null,
                 'avatar' => $profileImagePath,
                 'is_active' => false,
