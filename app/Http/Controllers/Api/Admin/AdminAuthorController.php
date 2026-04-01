@@ -103,12 +103,7 @@ class AdminAuthorController extends Controller
     }
     public function rejectAuthor(ApproveRejectAuthorRequest $request, User $user): JsonResponse
     {
-        $user->update([
-            'is_active'     => false,
-            'status'        => 'rejected',
-            'rejected_by'   => $request->user()->id,
-            'rejected_at'   => now(),
-        ]);
+        $author = clone $user;
 
         // 📩 Send rejection email
         Mail::to($user->email)->send(
@@ -121,9 +116,13 @@ class AdminAuthorController extends Controller
             )
         );
 
+        $this->deleteStoredAvatar($user->avatar);
+        $user->tokens()->delete();
+        $user->delete();
+
         return response()->json([
             'message' => 'Author rejected successfully',
-            'data' => $this->formatAuthorResponse($user),
+            'data' => $this->formatAuthorResponse($author),
         ], 200);
     }
 
