@@ -124,6 +124,29 @@ class NotificationService
         }
     }
 
+    public function notifyAdminsOfAuthorRegistration(User $author): void
+    {
+        $admins = User::query()
+            ->where('role_id', 1)
+            ->get();
+
+        foreach ($admins as $admin) {
+            $this->createNotification(
+                userId: $admin->id,
+                createdByUserId: $author->id,
+                role: 'admin',
+                type: 'author.pending_approval',
+                title: 'New author request pending approval',
+                message: trim(($author->firstname ?? '').' '.($author->lastname ?? '')).' requested to become an author.',
+                payload: [
+                    'author_id' => $author->id,
+                    'email' => $author->email,
+                    'status' => $author->status,
+                ]
+            );
+        }
+    }
+
     public function sendSystemNotification(string $target, string $title, string $message, ?array $payload = null, ?int $createdByUserId = null): int
     {
         $roles = $this->resolveTargets($target);

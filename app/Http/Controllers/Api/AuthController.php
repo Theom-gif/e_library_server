@@ -7,6 +7,7 @@ use App\Http\Requests\LoginRequest;
 use App\Http\Requests\RegisterRequest;
 use App\Http\Requests\admin\RegistationAuthor;
 use App\Models\User;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
@@ -15,6 +16,10 @@ use Illuminate\Support\Facades\Mail;
 
 class AuthController extends Controller
 {
+    public function __construct(private readonly NotificationService $notificationService)
+    {
+    }
+
     // --------------------------------------
     // Register User
     // --------------------------------------
@@ -148,6 +153,8 @@ class AuthController extends Controller
                     'Click Here To Go In As Author'
                 )
             );
+
+            $this->notificationService->notifyAdminsOfAuthorRegistration($user);
 
             $token = $user->createToken('auth_token')->plainTextToken;
 
