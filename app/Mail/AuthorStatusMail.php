@@ -14,12 +14,14 @@ class AuthorStatusMail extends Mailable
     public $user;
     public $status;
     public $messageText;
+    public $portalUrl;
 
     public function __construct($user, $status, $messageText)
     {
         $this->user = $user;
         $this->status = $status;
         $this->messageText = $messageText;
+        $this->portalUrl = 'https://e-library-portal.app/login';
     }
 
     public function envelope(): Envelope
@@ -32,7 +34,7 @@ class AuthorStatusMail extends Mailable
     public function content(): Content
     {
         return new Content(
-            markdown: 'emails.author-status'
+            view: 'emails.author-status'
         );
     }
 
