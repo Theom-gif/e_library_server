@@ -139,6 +139,16 @@ class AuthController extends Controller
                 return $this->errorResponse('Failed to create author', null, 500);
             }
 
+            Mail::to($user->email)->send(
+                new AuthorStatusMail(
+                    $user,
+                    'Received',
+                    'Your author registration has been received and is currently under review.',
+                    'https://e-library-portal.app/login',
+                    'Click Here To Go In As Author'
+                )
+            );
+
             $token = $user->createToken('auth_token')->plainTextToken;
 
             return $this->successResponse([
