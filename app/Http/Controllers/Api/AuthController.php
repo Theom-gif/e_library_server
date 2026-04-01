@@ -10,7 +10,8 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Log;
+use App\Mail\AuthorStatusMail;
+use Illuminate\Support\Facades\Mail;
 
 class AuthController extends Controller
 {
@@ -19,11 +20,7 @@ class AuthController extends Controller
     // --------------------------------------
     public function register(RegisterRequest $request): JsonResponse
     {
-        try {
-            return $this->registerUser($request->validated());
-        } catch (\Exception $e) {
-            return $this->errorResponse('Registration failed', $e->getMessage(), 500);
-        }
+        return $this->registerUser($request->validated());
     }
 
     // --------------------------------------
@@ -31,47 +28,49 @@ class AuthController extends Controller
     // --------------------------------------
     public function authorRegister(RegistationAuthor $request): JsonResponse
     {
-        try {
-            return $this->registerUser($request->validated());
-        } catch (\Exception $e) {
-            return $this->errorResponse('Registration failed', $e->getMessage(), 500);
-        }
+        return $this->registerAuthor($request->validated());
     }
 
     // --------------------------------------
     // Login
     // --------------------------------------
+    public function login(LoginRequest $request): JsonResponse
+    {
+        $email = $request->email;
+        $password = $request->password;
 
+        $user = User::where('email', $email)->first();
 
-public function login(LoginRequest $request): JsonResponse
-{
-    $email = $request->email;
-    $password = $request->password;
+        // ✅ FIXED CONDITION
+        if ($user && ($user->status !== 'active' || $user->status === 'in_review')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Your account is not active. Please contact support.',
+            ], 403);
+        }
 
-    $user = User::where('email', $email)->first();
+        if (!$user || !Hash::check($password, $user->password)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid credentials',
+            ], 401);
+        }
 
-    if (!$user || !Hash::check($password, $user->password)) {
+        // delete old tokens
+        $user->tokens()->delete();
+
+        // create new token
+        $token = $user->createToken('auth_token')->plainTextToken;
+
         return response()->json([
-            'status' => false,
-            'message' => 'Invalid credentials',
-        ], 401);
+            'success' => true,
+            'message' => 'Login successful',
+            'data' => [
+                'user' => $user,
+                'token' => $token,
+            ]
+        ], 200);
     }
-
-    // delete old tokens
-    $user->tokens()->delete();
-
-    // create new token
-    $token = $user->createToken('auth_token')->plainTextToken;
-
-    return response()->json([
-        'status' => true,
-        'message' => 'Login successful',
-        'data' => [
-            'user' => $user,
-            'token' => $token,
-        ]
-    ], 200);
-}
 
     // --------------------------------------
     // Logout
@@ -104,25 +103,51 @@ public function login(LoginRequest $request): JsonResponse
         ], $code);
     }
 
-    /**
-     * @param array<string, mixed> $validated
-     */
+    // --------------------------------------
+    // Register User Logic
+    // --------------------------------------
     private function registerUser(array $validated): JsonResponse
     {
-        $user = User::create([
-            'firstname' => $validated['firstname'],
-            'lastname' => $validated['lastname'],
-            'email' => $validated['email'],
-            'password' => $validated['password'], // auto-hashed by model
-            'role_id' => $validated['role_id'],
-        ]);
+        try {
+            $user = User::createUser($validated);
 
-        $token = $user->createToken('auth_token')->plainTextToken;
+            if (!$user) {
+                return $this->errorResponse('Failed to create user', null, 500);
+            }
 
-        return $this->successResponse([
-            'user' => $user,
-            'token' => $token,
-        ], 'User registered successfully', 201);
+            $token = $user->createToken('auth_token')->plainTextToken;
+
+            return $this->successResponse([
+                'user' => $user,
+                'token' => $token,
+            ], 'User registered successfully', 201);
+
+        } catch (\Exception $e) {
+            return $this->errorResponse('Registration failed', $e->getMessage(), 500);
+        }
     }
 
+    // --------------------------------------
+    // Register Author Logic
+    // --------------------------------------
+    private function registerAuthor(array $validated): JsonResponse
+    {
+        try {
+            $user = User::createAuthor($validated);
+
+            if (!$user) {
+                return $this->errorResponse('Failed to create author', null, 500);
+            }
+
+            $token = $user->createToken('auth_token')->plainTextToken;
+
+            return $this->successResponse([
+                'user' => $user,
+                'token' => $token,
+            ], 'Author registered successfully', 201);
+
+        } catch (\Exception $e) {
+            return $this->errorResponse('Registration failed', $e->getMessage(), 500);
+        }
+    }
 }

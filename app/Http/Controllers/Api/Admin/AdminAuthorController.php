@@ -3,11 +3,14 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\admin\ApproveRejectAuthorRequest;
+use App\Mail\AuthorStatusMail;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -35,10 +38,10 @@ class AdminAuthorController extends Controller
 
             if ($search !== '') {
                 $query->where(function ($builder) use ($search) {
-                    $builder->whereRaw("CONCAT(COALESCE(firstname, ''), ' ', COALESCE(lastname, '')) LIKE ?", ['%'.$search.'%'])
-                        ->orWhere('firstname', 'like', '%'.$search.'%')
-                        ->orWhere('lastname', 'like', '%'.$search.'%')
-                        ->orWhere('email', 'like', '%'.$search.'%');
+                    $builder->whereRaw("CONCAT(COALESCE(firstname, ''), ' ', COALESCE(lastname, '')) LIKE ?", ['%' . $search . '%'])
+                        ->orWhere('firstname', 'like', '%' . $search . '%')
+                        ->orWhere('lastname', 'like', '%' . $search . '%')
+                        ->orWhere('email', 'like', '%' . $search . '%');
                 });
             }
 
@@ -50,7 +53,7 @@ class AdminAuthorController extends Controller
             }
 
             $authors = $query->latest('created_at')->paginate($perPage);
-            $authors->getCollection()->transform(fn (User $author) => $this->formatAuthorResponse($author));
+            $authors->getCollection()->transform(fn(User $author) => $this->formatAuthorResponse($author));
 
             return response()->json([
                 'success' => true,
@@ -64,13 +67,60 @@ class AdminAuthorController extends Controller
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Throwable $e) {
-            Log::error('AdminAuthorController@index error: '.$e->getMessage());
+            Log::error('AdminAuthorController@index error: ' . $e->getMessage());
 
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to retrieve authors',
             ], 500);
         }
+    }
+
+    public function approveAuthor(ApproveRejectAuthorRequest $request, User $user): JsonResponse
+    {
+        $user->update([
+            'is_active'    => true,
+            'status'       => 'active',
+            'approved_by'  => $request->user()->id,
+            'approved_at'  => now(),
+        ]);
+
+        // 📩 Send approval email
+        Mail::to($user->email)->send(
+            new AuthorStatusMail(
+                $user,
+                'Approved',
+                'Congratulations! Your author account has been approved.'
+            )
+        );
+
+        return response()->json([
+            'message' => 'Author approved successfully',
+            'data' => $this->formatAuthorResponse($user),
+        ], 200);
+    }
+    public function rejectAuthor(ApproveRejectAuthorRequest $request, User $user): JsonResponse
+    {
+        $user->update([
+            'is_active'     => false,
+            'status'        => 'rejected',
+            'rejected_by'   => $request->user()->id,
+            'rejected_at'   => now(),
+        ]);
+
+        // 📩 Send rejection email
+        Mail::to($user->email)->send(
+            new AuthorStatusMail(
+                $user,
+                'Rejected',
+                'Sorry, your author application was rejected. Please contact support.'
+            )
+        );
+
+        return response()->json([
+            'message' => 'Author rejected successfully',
+            'data' => $this->formatAuthorResponse($user),
+        ], 200);
     }
 
     public function store(Request $request): JsonResponse
@@ -106,6 +156,7 @@ class AdminAuthorController extends Controller
                 'bio' => $validated['bio'] ?? null,
                 'avatar' => $profileImagePath,
                 'is_active' => false,
+                'status' => 'in_review',
                 'invitation_token' => $this->generateInvitationToken(),
                 'invitation_sent_at' => now(),
                 'invitation_accepted_at' => null,
@@ -125,7 +176,7 @@ class AdminAuthorController extends Controller
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Throwable $e) {
-            Log::error('AdminAuthorController@store error: '.$e->getMessage());
+            Log::error('AdminAuthorController@store error: ' . $e->getMessage());
 
             return response()->json([
                 'success' => false,
@@ -147,7 +198,7 @@ class AdminAuthorController extends Controller
                 'data' => $this->formatAuthorResponse($author),
             ]);
         } catch (\Throwable $e) {
-            Log::error('AdminAuthorController@show error: '.$e->getMessage());
+            Log::error('AdminAuthorController@show error: ' . $e->getMessage());
 
             return response()->json([
                 'success' => false,
@@ -217,7 +268,7 @@ class AdminAuthorController extends Controller
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Throwable $e) {
-            Log::error('AdminAuthorController@update error: '.$e->getMessage());
+            Log::error('AdminAuthorController@update error: ' . $e->getMessage());
 
             return response()->json([
                 'success' => false,
@@ -242,7 +293,7 @@ class AdminAuthorController extends Controller
                 'message' => 'Author deleted successfully',
             ]);
         } catch (\Throwable $e) {
-            Log::error('AdminAuthorController@destroy error: '.$e->getMessage());
+            Log::error('AdminAuthorController@destroy error: ' . $e->getMessage());
 
             return response()->json([
                 'success' => false,
@@ -271,7 +322,7 @@ class AdminAuthorController extends Controller
                 'message' => 'Invitation email sent successfully',
             ]);
         } catch (\Throwable $e) {
-            Log::error('AdminAuthorController@resendInvitation error: '.$e->getMessage());
+            Log::error('AdminAuthorController@resendInvitation error: ' . $e->getMessage());
 
             return response()->json([
                 'success' => false,
@@ -290,13 +341,13 @@ class AdminAuthorController extends Controller
 
     private function generateInvitationToken(): string
     {
-        return hash('sha256', Str::random(100).microtime(true));
+        return hash('sha256', Str::random(100) . microtime(true));
     }
 
     private function sendInvitationEmail(User $author): void
     {
         $baseUrl = rtrim((string) env('FRONTEND_URL', env('APP_URL', url('/'))), '/');
-        $invitationUrl = $baseUrl.'/author/setup?token='.$author->invitation_token;
+        $invitationUrl = $baseUrl . '/author/setup?token=' . $author->invitation_token;
 
         Log::info('Author invitation email sent', [
             'author_id' => $author->id,
@@ -312,7 +363,7 @@ class AdminAuthorController extends Controller
         }
 
         $file = $request->file('profile_image');
-        $filename = time().'_'.Str::slug($name).'.'.$file->getClientOriginalExtension();
+        $filename = time() . '_' . Str::slug($name) . '.' . $file->getClientOriginalExtension();
 
         return $file->storeAs('authors', $filename, 'public');
     }
@@ -344,7 +395,7 @@ class AdminAuthorController extends Controller
 
     private function displayName(User $author): string
     {
-        return trim(($author->firstname ?? '').' '.($author->lastname ?? '')) ?: 'Unknown';
+        return trim(($author->firstname ?? '') . ' ' . ($author->lastname ?? '')) ?: 'Unknown';
     }
 
     /**
@@ -378,7 +429,13 @@ class AdminAuthorController extends Controller
             return $path;
         }
 
-        return url(Storage::disk('public')->url($path));
+        $storageUrl = Storage::disk('public')->url($path);
+
+        if (preg_match('/^(https?:)\/\//i', $storageUrl)) {
+            return $storageUrl;
+        }
+
+        return url($storageUrl);
     }
 
     private function notFoundResponse(): JsonResponse

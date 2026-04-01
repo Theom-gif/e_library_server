@@ -200,6 +200,8 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(functi
 
     Route::get('/users', [AdminUserController::class, 'index']);
     Route::get('/users/{user}', [AdminUserController::class, 'show']);
+    Route::post('/approve-authors/{user}', [AdminAuthorController::class, 'approveAuthor']);
+    Route::post('/reject-authors/{user}', [AdminAuthorController::class, 'rejectAuthor']);
     Route::match(['put', 'patch', 'post'], '/users/{user}', [AdminUserController::class, 'update']);
     Route::delete('/users/{user}', [AdminUserController::class, 'destroy']);
 

@@ -35,8 +35,9 @@ class User extends Authenticatable
         'password',
         'bio',
         'facebook_url',
+        "is_active",
         'avatar',
-        'is_active',
+        'status',
         'invitation_token',
         'invitation_sent_at',
         'invitation_accepted_at',
@@ -52,21 +53,18 @@ class User extends Authenticatable
         'remember_token',
     ];
 
-    /**mi
-     * Get the attributes that should be cast.
+    /**
+     * The attributes that should be cast.
      *
-     * @return array<string, string>
+     * @var array<string,string>
      */
-    protected function casts(): array
-    {
-        return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-            'is_active' => 'boolean',
-            'invitation_sent_at' => 'datetime',
-            'invitation_accepted_at' => 'datetime',
-        ];
-    }
+    protected $casts = [
+        'email_verified_at' => 'datetime',
+        'password' => 'hashed',
+        'is_active' => 'boolean',
+        'invitation_sent_at' => 'datetime',
+        'invitation_accepted_at' => 'datetime',
+    ];
 
     public function avatarImage(): HasOne
     {
@@ -169,5 +167,49 @@ class User extends Authenticatable
     {
         return $this->belongsToMany(self::class, 'favorite_authors', 'author_id', 'user_id')
             ->withTimestamps();
+    }
+
+    /**
+     * Create a normal user with sensible defaults.
+     *
+     * @param array<string,mixed> $data
+     */
+    public static function createUser(array $data): self
+    {
+        $payload = [
+            'firstname' => $data['firstname'] ?? ($data['first_name'] ?? 'User'),
+            'lastname' => $data['lastname'] ?? ($data['last_name'] ?? ''),
+            'email' => $data['email'] ?? null,
+            'password' => $data['password'] ?? null,
+            'role_id' => $data['role_id'] ?? 3,
+            'status' => $data['status'] ?? 'active',
+            'is_active' => $data['is_active'] ?? true,
+            'bio' => $data['bio'] ?? null,
+            'avatar' => $data['avatar'] ?? null,
+        ];
+
+        return self::create($payload);
+    }
+
+    /**
+     * Create an author account with author defaults.
+     *
+     * @param array<string,mixed> $data
+     */
+    public static function createAuthor(array $data): self
+    {
+        $payload = [
+            'firstname' => $data['firstname'] ?? ($data['first_name'] ?? 'Author'),
+            'lastname' => $data['lastname'] ?? ($data['last_name'] ?? ''),
+            'email' => $data['email'] ?? null,
+            'password' => $data['password'] ?? null,
+            'role_id' => $data['role_id'] ?? 2,
+            'status' => $data['status'] ?? 'in_review',
+            'is_active' => $data['is_active'] ?? false,
+            'bio' => $data['bio'] ?? null,
+            'avatar' => $data['avatar'] ?? null,
+        ];
+
+        return self::create($payload);
     }
 }
