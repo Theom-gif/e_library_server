@@ -20,12 +20,12 @@
                 Please <a href="{{ $portalUrl }}" style="color:#2563eb; font-weight:600;">click here</a> to go in as an author.
             </p>
 
-            <p style="margin:24px 0;">
+            <p style="margin:28px 0 30px;">
                 <a
                     href="{{ $portalUrl }}"
-                    style="display:inline-block; background-color:#2563eb; color:#ffffff; text-decoration:none; padding:12px 20px; border-radius:8px; font-weight:600;"
+                    style="display:inline-block; background:linear-gradient(135deg, #1d4ed8 0%, #2563eb 45%, #3b82f6 100%); color:#ffffff; text-decoration:none; padding:15px 28px; border-radius:999px; font-weight:700; font-size:16px; letter-spacing:0.2px; box-shadow:0 10px 24px rgba(37, 99, 235, 0.28); border:1px solid #1d4ed8;"
                 >
-                    {{ $actionText ?: 'Go To Author Portal' }}
+                    {{ $actionText ?: 'Go To Author Portal' }} &rarr;
                 </a>
             </p>
         @endif
