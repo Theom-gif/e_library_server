@@ -208,6 +208,12 @@ class Book extends Model
     {
         $this->loadMissing('coverImage');
 
+        $storedAsset = $this->resolveStoredCoverAsset($this->cover_image_path ?: $this->cover_image_url);
+
+        if ($storedAsset['url']) {
+            return $storedAsset;
+        }
+
         if ($this->coverImage) {
             return [
                 'path' => null,
@@ -216,11 +222,6 @@ class Book extends Model
         }
 
         $item = $this->toArray();
-        $asset = $this->resolveStoredCoverAsset($this->cover_image_path ?: $this->cover_image_url);
-
-        if ($asset['url']) {
-            return $asset;
-        }
 
         return [
             'path' => $this->cover_image_path,
