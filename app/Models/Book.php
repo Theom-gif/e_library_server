@@ -239,19 +239,12 @@ class Book extends Model
         if (preg_match('/^(https?:|data:)/i', $value)) {
             return ['path' => null, 'url' => $value];
         }
+        $normalized = PublicImage::normalize($value, 'books/covers');
 
-        if (preg_match('/^(?:[A-Za-z]:[\\\\\\/]|\\\\\\\\)/', $value)) {
-            return ['path' => null, 'url' => null];
-        }
-
-        if (Storage::disk('public')->exists($value)) {
-            return [
-                'path' => $value,
-                'url' => Storage::disk('public')->url($value),
-            ];
-        }
-
-        return ['path' => null, 'url' => null];
+        return [
+            'path' => $normalized['path'] ?? null,
+            'url' => $normalized['url'] ?? null,
+        ];
     }
 
     public function category()

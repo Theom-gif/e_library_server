@@ -97,10 +97,6 @@ class User extends Authenticatable
             return ['path' => null, 'url' => $raw];
         }
 
-        if (preg_match('/^(?:[A-Za-z]:[\\\\\\/]|\\\\\\\\)/', $raw)) {
-            return ['path' => null, 'url' => null];
-        }
-
         $normalized = PublicImage::normalize($raw, 'avatars');
         $path = $normalized['path'] ?? null;
         $url = $normalized['url'] ?? null;
