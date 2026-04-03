@@ -8,7 +8,7 @@ use Tests\TestCase;
 
 class UserAvatarUrlTest extends TestCase
 {
-    public function test_it_returns_an_absolute_avatar_route_for_blob_avatars(): void
+    public function test_it_returns_a_relative_avatar_route_for_blob_avatars(): void
     {
         $user = new User();
         $user->id = 7;
@@ -23,6 +23,6 @@ class UserAvatarUrlTest extends TestCase
 
         $resolved = $user->resolveProfileImage();
 
-        $this->assertMatchesRegularExpression('#^https?://.*/avatars/7(?:\\?.*)?$#', (string) $resolved['url']);
+        $this->assertMatchesRegularExpression('#^/avatars/7(?:\\?.*)?$#', (string) $resolved['url']);
     }
 }
