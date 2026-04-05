@@ -208,6 +208,12 @@ class Book extends Model
     {
         $this->loadMissing('coverImage');
 
+        $storedAsset = $this->resolveStoredCoverAsset($this->cover_image_path ?: $this->cover_image_url);
+
+        if ($storedAsset['url']) {
+            return $storedAsset;
+        }
+
         if ($this->coverImage) {
             return [
                 'path' => null,
@@ -216,11 +222,6 @@ class Book extends Model
         }
 
         $item = $this->toArray();
-        $asset = $this->resolveStoredCoverAsset($this->cover_image_path ?: $this->cover_image_url);
-
-        if ($asset['url']) {
-            return $asset;
-        }
 
         return [
             'path' => $this->cover_image_path,
@@ -238,19 +239,12 @@ class Book extends Model
         if (preg_match('/^(https?:|data:)/i', $value)) {
             return ['path' => null, 'url' => $value];
         }
+        $normalized = PublicImage::normalize($value, 'books/covers');
 
-        if (preg_match('/^(?:[A-Za-z]:[\\\\\\/]|\\\\\\\\)/', $value)) {
-            return ['path' => null, 'url' => null];
-        }
-
-        if (Storage::disk('public')->exists($value)) {
-            return [
-                'path' => $value,
-                'url' => Storage::disk('public')->url($value),
-            ];
-        }
-
-        return ['path' => null, 'url' => null];
+        return [
+            'path' => $normalized['path'] ?? null,
+            'url' => $normalized['url'] ?? null,
+        ];
     }
 
     public function category()

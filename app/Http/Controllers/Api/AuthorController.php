@@ -297,6 +297,12 @@ class AuthorController extends Controller
             'cover_url' => $cover['url'],
             'cover' => $cover['url'],
             'poster' => $cover['url'],
+            'image' => $cover['url'],
+            'image_url' => $cover['url'],
+            'thumbnail' => $cover['url'],
+            'thumbnail_url' => $cover['url'],
+            'coverImageUrl' => $cover['url'],
+            'coverImage' => $cover['url'],
             'created_at' => $book->created_at,
             'updated_at' => $book->updated_at,
         ];
