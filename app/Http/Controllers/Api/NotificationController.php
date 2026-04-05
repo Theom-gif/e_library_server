@@ -35,13 +35,14 @@ class NotificationController extends Controller
         }
 
         $perPage = max(1, min((int) $request->query('per_page', 20), 100));
-        $role = strtolower(trim((string) $request->query('role', 'all')));
+        $requestedRole = strtolower(trim((string) $request->query('role', 'admin')));
+        $role = in_array($requestedRole, ['all', 'admin'], true) ? 'admin' : $requestedRole;
 
         return response()->json([
             'success' => true,
-            'data' => $this->notificationService->listAll($perPage, $role),
+            'data' => $this->notificationService->listForUser($user, $role, $perPage),
             'meta' => [
-                'unread_count' => $this->notificationService->unreadCountAll($role),
+                'unread_count' => $this->notificationService->unreadCount($user, $role),
                 'role' => $role,
                 'per_page' => $perPage,
             ],
