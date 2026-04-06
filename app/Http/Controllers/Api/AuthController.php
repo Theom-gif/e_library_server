@@ -10,7 +10,9 @@ use App\Models\User;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use App\Mail\AuthorStatusMail;
 use Illuminate\Support\Facades\Mail;
 
@@ -138,23 +140,31 @@ class AuthController extends Controller
     private function registerAuthor(array $validated): JsonResponse
     {
         try {
-            $user = User::createAuthor($validated);
+            $user = DB::transaction(function () use ($validated): User {
+                $author = User::createAuthor($validated);
 
-            if (!$user) {
-                return $this->errorResponse('Failed to create author', null, 500);
+                $this->notificationService->notifyAdminsOfAuthorRegistration($author);
+
+                return $author;
+            });
+
+            try {
+                Mail::to($user->email)->send(
+                    new AuthorStatusMail(
+                        $user,
+                        'Received',
+                        'Your author registration has been received and is currently under review.',
+                        'https://e-library-portal.app/login',
+                        'Click Here To Go In As Author'
+                    )
+                );
+            } catch (\Throwable $mailException) {
+                Log::warning('Author registration email failed after request was saved.', [
+                    'user_id' => $user->id,
+                    'email' => $user->email,
+                    'error' => $mailException->getMessage(),
+                ]);
             }
-
-            Mail::to($user->email)->send(
-                new AuthorStatusMail(
-                    $user,
-                    'Received',
-                    'Your author registration has been received and is currently under review.',
-                    'https://e-library-portal.app/login',
-                    'Click Here To Go In As Author'
-                )
-            );
-
-            $this->notificationService->notifyAdminsOfAuthorRegistration($user);
 
             $token = $user->createToken('auth_token')->plainTextToken;
 
@@ -163,7 +173,7 @@ class AuthController extends Controller
                 'token' => $token,
             ], 'Author registered successfully', 201);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return $this->errorResponse('Registration failed', $e->getMessage(), 500);
         }
     }

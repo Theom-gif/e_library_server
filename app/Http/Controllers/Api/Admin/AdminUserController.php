@@ -21,7 +21,7 @@ class AdminUserController extends Controller
         $roleMap = $this->getRoleMap();
 
         $query = User::query()
-            ->select(['id', 'role_id', 'firstname', 'lastname', 'email', 'created_at']);
+            ->select(['id', 'role_id', 'firstname', 'lastname', 'email', 'status', 'is_active', 'created_at']);
 
         if ($search !== '') {
             $query->where(function ($q) use ($search) {
@@ -178,13 +178,21 @@ class AdminUserController extends Controller
 
     private function transformUser(User $user, array $roleMap): array
     {
+        $roleLabel = $roleMap[$user->role_id] ?? $this->fallbackRoleName((int) $user->role_id);
+
+        if ((int) $user->role_id === 2 && strtolower((string) $user->status) === 'in_review') {
+            $roleLabel = 'Pending Author';
+        }
+
         return [
             'id' => $user->id,
-            'role' => $roleMap[$user->role_id] ?? $this->fallbackRoleName((int) $user->role_id),
+            'role' => $roleLabel,
             'role_id' => $user->role_id,
             'first_name' => $user->firstname,
             'last_name' => $user->lastname,
             'email' => $user->email,
+            'status' => $user->status,
+            'is_active' => (bool) ($user->is_active ?? false),
             'created_at' => optional($user->created_at)->toDateTimeString(),
         ];
     }

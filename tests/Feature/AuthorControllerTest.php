@@ -127,4 +127,31 @@ class AuthorControllerTest extends TestCase
             ->assertJsonPath('data.0.books_count', 1)
             ->assertJsonPath('data.0.avg_rating', 4.0);
     }
+
+    public function test_pending_authors_are_hidden_from_public_author_endpoints(): void
+    {
+        User::factory()->create([
+            'role_id' => 2,
+            'firstname' => 'Pending',
+            'lastname' => 'Author',
+            'email' => 'pending@author.test',
+            'status' => 'in_review',
+            'is_active' => false,
+        ]);
+
+        $activeAuthor = User::factory()->create([
+            'role_id' => 2,
+            'firstname' => 'Active',
+            'lastname' => 'Author',
+            'email' => 'active@author.test',
+            'status' => 'active',
+            'is_active' => true,
+        ]);
+
+        $response = $this->getJson('/api/authors');
+
+        $response->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.id', $activeAuthor->id);
+    }
 }

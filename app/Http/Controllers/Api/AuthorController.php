@@ -162,6 +162,14 @@ class AuthorController extends Controller
             ->addSelect(DB::raw('COALESCE(rating_averages.avg_rating, 0) as avg_rating'))
             ->where('role_id', $roleId);
 
+        if (Schema::hasColumn('users', 'is_active')) {
+            $query->where('users.is_active', true);
+        }
+
+        if (Schema::hasColumn('users', 'status')) {
+            $query->where('users.status', 'active');
+        }
+
         if ($viewerId !== null) {
             $viewerFollows = DB::table('favorite_authors')
                 ->selectRaw('author_id, 1 as is_following')
