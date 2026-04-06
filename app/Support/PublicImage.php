@@ -86,7 +86,7 @@ class PublicImage
 
             return [
                 'path' => null,
-                'url' => $value,
+                'url' => null,
             ];
         }
 

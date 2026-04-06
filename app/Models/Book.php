@@ -208,17 +208,17 @@ class Book extends Model
     {
         $this->loadMissing('coverImage');
 
+        if ($this->coverImage) {
+            return [
+                'path' => $this->cover_image_path,
+                'url' => route('api.books.cover', ['book' => $this->id]),
+            ];
+        }
+
         $storedAsset = $this->resolveStoredCoverAsset($this->cover_image_path ?: $this->cover_image_url);
 
         if ($storedAsset['url']) {
             return $storedAsset;
-        }
-
-        if ($this->coverImage) {
-            return [
-                'path' => null,
-                'url' => route('api.books.cover', ['book' => $this->id]),
-            ];
         }
 
         $item = $this->toArray();
