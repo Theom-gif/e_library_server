@@ -22,7 +22,7 @@ class PublicImage
 
         Storage::disk('public')->putFileAs(trim($directory, '/'), $file, basename($path));
 
-        $url = Storage::disk('public')->url($path);
+        $url = self::absoluteUrl(Storage::disk('public')->url($path));
         $encryptedName = hash('sha256', $path);
         $extension = $file->getClientOriginalExtension() ?: $file->extension() ?: 'jpg';
         $serverUrl = env('IMAGE_SERVER_URL') ? rtrim(env('IMAGE_SERVER_URL'), '/').'/'.$encryptedName.'.'.$extension : null;
@@ -62,7 +62,7 @@ class PublicImage
         }
 
         if (Storage::disk('public')->exists($value)) {
-            $url = Storage::disk('public')->url($value);
+            $url = self::absoluteUrl(Storage::disk('public')->url($value));
             $extension = pathinfo($value, PATHINFO_EXTENSION) ?: 'jpg';
             $encryptedName = hash('sha256', $value);
             $serverUrl = env('IMAGE_SERVER_URL') ? rtrim(env('IMAGE_SERVER_URL'), '/').'/'.$encryptedName.'.'.$extension : null;
@@ -80,7 +80,7 @@ class PublicImage
             if (!preg_match('/^(?:[A-Za-z]:[\\\\\\/]|\\\\\\\\)/', $value)) {
                 return [
                     'path' => $value,
-                    'url' => Storage::disk('public')->url($value),
+                    'url' => self::absoluteUrl(Storage::disk('public')->url($value)),
                 ];
             }
 
@@ -95,7 +95,7 @@ class PublicImage
 
         Storage::disk('public')->put($path, file_get_contents($localPath));
 
-        $url = Storage::disk('public')->url($path);
+        $url = self::absoluteUrl(Storage::disk('public')->url($path));
         $encryptedName = hash('sha256', $path);
         $serverUrl = env('IMAGE_SERVER_URL') ? rtrim(env('IMAGE_SERVER_URL'), '/').'/'.$encryptedName.'.'.$extension : null;
 
@@ -105,5 +105,14 @@ class PublicImage
             'encrypted_name' => $encryptedName.'.'.$extension,
             'server_url' => $serverUrl,
         ];
+    }
+
+    private static function absoluteUrl(string $url): string
+    {
+        if (preg_match('/^(https?:|data:)/i', $url)) {
+            return $url;
+        }
+
+        return rtrim((string) config('app.url', env('APP_URL', 'http://localhost')), '/').'/'.ltrim($url, '/');
     }
 }

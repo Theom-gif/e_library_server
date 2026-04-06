@@ -30,6 +30,6 @@ class BookCoverResolutionTest extends TestCase
         $cover = $book->resolvedCoverAsset();
 
         $this->assertSame('books/covers/test-cover.jpg', $cover['path']);
-        $this->assertSame('/storage/books/covers/test-cover.jpg', $cover['url']);
+        $this->assertSame('http://localhost:8000/storage/books/covers/test-cover.jpg', $cover['url']);
     }
 }

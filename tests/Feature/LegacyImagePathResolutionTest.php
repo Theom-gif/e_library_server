@@ -24,7 +24,7 @@ class LegacyImagePathResolutionTest extends TestCase
         $resolved = $book->resolvedCoverAsset();
 
         $this->assertNotNull($resolved['path']);
-        $this->assertStringStartsWith('/storage/books/covers/', (string) $resolved['url']);
+        $this->assertStringStartsWith('http://localhost:8000/storage/books/covers/', (string) $resolved['url']);
 
         @unlink($legacyFile);
     }
@@ -44,7 +44,7 @@ class LegacyImagePathResolutionTest extends TestCase
         $resolved = $user->resolveProfileImage();
 
         $this->assertNotNull($resolved['path']);
-        $this->assertStringStartsWith('/storage/avatars/', (string) $resolved['url']);
+        $this->assertStringStartsWith('http://localhost:8000/storage/avatars/', (string) $resolved['url']);
 
         @unlink($legacyFile);
     }
