@@ -130,6 +130,10 @@ class NotificationService
             ->where('role_id', 1)
             ->get();
 
+        $authorName = trim(($author->firstname ?? '').' '.($author->lastname ?? ''));
+        $approvePath = '/api/admin/approve-authors/'.$author->id;
+        $rejectPath = '/api/admin/reject-authors/'.$author->id;
+
         foreach ($admins as $admin) {
             $this->createNotification(
                 userId: $admin->id,
@@ -137,11 +141,36 @@ class NotificationService
                 role: 'admin',
                 type: 'author.pending_approval',
                 title: 'New author request pending approval',
-                message: trim(($author->firstname ?? '').' '.($author->lastname ?? '')).' requested to become an author.',
+                message: $authorName.' requested to become an author.',
                 payload: [
                     'author_id' => $author->id,
+                    'authorId' => $author->id,
+                    'author_name' => $authorName,
+                    'authorName' => $authorName,
                     'email' => $author->email,
                     'status' => $author->status,
+                    'request_type' => 'author_approval',
+                    'requestType' => 'author_approval',
+                    'entity_type' => 'author',
+                    'entityType' => 'author',
+                    'can_approve' => true,
+                    'canApprove' => true,
+                    'can_reject' => true,
+                    'canReject' => true,
+                    'approve_endpoint' => $approvePath,
+                    'approveEndpoint' => $approvePath,
+                    'reject_endpoint' => $rejectPath,
+                    'rejectEndpoint' => $rejectPath,
+                    'actions' => [
+                        'approve' => [
+                            'method' => 'POST',
+                            'endpoint' => $approvePath,
+                        ],
+                        'reject' => [
+                            'method' => 'POST',
+                            'endpoint' => $rejectPath,
+                        ],
+                    ],
                 ]
             );
         }

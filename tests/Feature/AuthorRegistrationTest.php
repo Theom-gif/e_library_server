@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 class AuthorRegistrationTest extends TestCase
@@ -55,6 +56,42 @@ class AuthorRegistrationTest extends TestCase
             'role' => 'admin',
             'type' => 'author.pending_approval',
         ]);
+    }
+
+    public function test_admin_notification_exposes_approve_and_reject_actions_for_author_requests(): void
+    {
+        $this->seedRoles();
+
+        $admin = User::factory()->create([
+            'role_id' => 1,
+            'status' => 'active',
+            'is_active' => true,
+        ]);
+
+        Mail::fake();
+
+        $this->postJson('/api/auth/author_registration', [
+            'firstname' => 'Tha',
+            'lastname' => 'Lita',
+            'email' => 'thalita-actions@example.com',
+            'password' => 'SecurePass123!',
+            'password_confirmation' => 'SecurePass123!',
+        ])->assertCreated();
+
+        Sanctum::actingAs($admin);
+
+        $response = $this->getJson('/api/admin/notifications');
+
+        $response->assertOk()
+            ->assertJsonPath('data.0.type', 'author.pending_approval')
+            ->assertJsonPath('data.0.data.request_type', 'author_approval')
+            ->assertJsonPath('data.0.data.can_approve', true)
+            ->assertJsonPath('data.0.data.can_reject', true)
+            ->assertJsonPath('data.0.data.actions.approve.method', 'POST')
+            ->assertJsonPath('data.0.data.actions.reject.method', 'POST');
+
+        $this->assertStringContainsString('/api/admin/approve-authors/', (string) $response->json('data.0.data.approve_endpoint'));
+        $this->assertStringContainsString('/api/admin/reject-authors/', (string) $response->json('data.0.data.reject_endpoint'));
     }
 
     private function seedRoles(): void
