@@ -84,7 +84,7 @@ class User extends Authenticatable
                 'url' => route('avatars.show', [
                     'userId' => $this->id,
                     'v' => optional($this->avatarImage->updated_at)->timestamp,
-                ], false),
+                ]),
             ];
         }
 
@@ -123,7 +123,7 @@ class User extends Authenticatable
             return $value;
         }
 
-        return '/'.ltrim($value, '/');
+        return rtrim((string) config('app.url', env('APP_URL', 'http://localhost')), '/').'/'.ltrim($value, '/');
     }
 
     public function books(): HasMany

@@ -721,7 +721,7 @@ class ReviewController extends Controller
         if ($updatedAt) {
             $version = Carbon::parse($updatedAt)->timestamp;
 
-            return route('avatars.show', ['userId' => $userId, 'v' => $version], false);
+            return route('avatars.show', ['userId' => $userId, 'v' => $version]);
         }
 
         return $this->resolveAvatarUrl($fallbackAvatar);

@@ -32,4 +32,25 @@ class BookCoverResolutionTest extends TestCase
         $this->assertSame('books/covers/test-cover.jpg', $cover['path']);
         $this->assertSame('http://localhost:8000/storage/books/covers/test-cover.jpg', $cover['url']);
     }
+
+    public function test_it_returns_an_absolute_cover_endpoint_for_blob_only_covers(): void
+    {
+        $book = new Book([
+            'cover_image_path' => null,
+            'cover_image_url' => null,
+        ]);
+        $book->id = 42;
+        $book->exists = true;
+        $book->setRelation('coverImage', new BookCover([
+            'book_id' => 42,
+            'mime_type' => 'image/jpeg',
+            'bytes' => 'blob-bytes',
+            'hash' => 'hash-value',
+        ]));
+
+        $cover = $book->resolvedCoverAsset();
+
+        $this->assertNull($cover['path']);
+        $this->assertSame('http://localhost:8000/api/books/42/cover', $cover['url']);
+    }
 }

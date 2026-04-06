@@ -217,7 +217,7 @@ class Book extends Model
         if ($this->coverImage) {
             return [
                 'path' => null,
-                'url' => route('api.books.cover', ['book' => $this->id], false),
+                'url' => route('api.books.cover', ['book' => $this->id]),
             ];
         }
 
