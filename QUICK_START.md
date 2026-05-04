@@ -9,6 +9,45 @@ php artisan serve
 
 Server will run at: **http://localhost:8000**
 
+## Start Redis
+
+If you want the local Redis server for cache, queues, or sessions, run:
+
+```bash
+docker compose up -d redis
+```
+
+Redis will be available to Laravel at `127.0.0.1:6379`, matching the default `.env.example` values.
+
+## Connect RedisInsight Desktop
+
+In RedisInsight Desktop, click **Connect existing database** and use:
+
+- Database Alias: `VC1 Redis`
+- Host: `localhost`
+- Port: `6379`
+- Username: leave empty
+- Password: leave empty
+- TLS: off
+
+If you prefer the browser-based RedisInsight container instead, run:
+
+```bash
+docker compose up -d redis redisinsight
+```
+
+Then open: **http://localhost:5540**
+
+## Redis Keys From User Activity
+
+The backend records common high-traffic interactions in Redis:
+
+- Successful login writes keys like `metrics:logins:total`, `metrics:logins:daily:YYYY-MM-DD`, and `users:{id}:last_login_at`.
+- Opening a book detail page writes keys like `metrics:books:detail_view:total`, `metrics:books:{bookId}:detail_view`, and `metrics:books:detail_view:top`.
+- Opening a book PDF writes keys like `metrics:books:read:total`, `metrics:books:{bookId}:read`, and `metrics:books:read:top`.
+
+Use RedisInsight Desktop to refresh the `db0` browser after logging in or opening a book.
+
 ## Test the API
 
 ### Health Check

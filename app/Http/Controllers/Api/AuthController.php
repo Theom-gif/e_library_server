@@ -3,24 +3,26 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\admin\RegistationAuthor;
 use App\Http\Requests\LoginRequest;
 use App\Http\Requests\RegisterRequest;
-use App\Http\Requests\admin\RegistationAuthor;
+use App\Mail\AuthorStatusMail;
 use App\Models\User;
 use App\Services\NotificationService;
-use Illuminate\Http\Request;
+use App\Services\UserInteractionRedisService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
-use App\Mail\AuthorStatusMail;
 use Illuminate\Support\Facades\Mail;
 
 class AuthController extends Controller
 {
-    public function __construct(private readonly NotificationService $notificationService)
-    {
-    }
+    public function __construct(
+        private readonly NotificationService $notificationService,
+        private readonly UserInteractionRedisService $interactionRedisService,
+    ) {}
 
     // --------------------------------------
     // Register User
@@ -56,7 +58,7 @@ class AuthController extends Controller
             ], 403);
         }
 
-        if (!$user || !Hash::check($password, $user->password)) {
+        if (! $user || ! Hash::check($password, $user->password)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Invalid credentials',
@@ -69,13 +71,15 @@ class AuthController extends Controller
         // create new token
         $token = $user->createToken('auth_token')->plainTextToken;
 
+        $this->interactionRedisService->recordLogin($user, $request);
+
         return response()->json([
             'success' => true,
             'message' => 'Login successful',
             'data' => [
                 'user' => $user,
                 'token' => $token,
-            ]
+            ],
         ], 200);
     }
 
@@ -97,7 +101,7 @@ class AuthController extends Controller
         return response()->json([
             'success' => true,
             'message' => $message,
-            'data'    => $data,
+            'data' => $data,
         ], $code);
     }
 
@@ -106,7 +110,7 @@ class AuthController extends Controller
         return response()->json([
             'success' => false,
             'message' => $message,
-            'errors'  => $errors,
+            'errors' => $errors,
         ], $code);
     }
 
@@ -118,7 +122,7 @@ class AuthController extends Controller
         try {
             $user = User::createUser($validated);
 
-            if (!$user) {
+            if (! $user) {
                 return $this->errorResponse('Failed to create user', null, 500);
             }
 

@@ -9,25 +9,28 @@ use App\Models\Book;
 use App\Models\Category;
 use App\Models\OfflineDownload;
 use App\Models\User;
-use App\Support\PublicImage;
 use App\Services\NotificationService;
+use App\Services\UserInteractionRedisService;
+use App\Support\PublicImage;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class BookWorkflowController extends Controller
 {
-    public function __construct(private readonly NotificationService $notificationService)
-    {
-    }
+    public function __construct(
+        private readonly NotificationService $notificationService,
+        private readonly UserInteractionRedisService $interactionRedisService,
+    ) {}
+
     public function userBooks(Request $request): JsonResponse
     {
         $perPage = max(1, min((int) $request->query('per_page', 15), 100));
@@ -153,7 +156,7 @@ class BookWorkflowController extends Controller
 
         $localLimit = max(1, min((int) $request->query('local_limit', 10), 30));
         $externalLimit = max(1, min((int) $request->query('external_limit', 10), 30));
-        $includeExternal = !in_array(
+        $includeExternal = ! in_array(
             strtolower((string) $request->query('include_external', 'true')),
             ['0', 'false', 'no'],
             true
@@ -209,7 +212,7 @@ class BookWorkflowController extends Controller
         $status = strtolower((string) $request->query('status', ''));
         $localLimit = max(1, min((int) $request->query('local_limit', 15), 50));
         $externalLimit = max(1, min((int) $request->query('external_limit', 10), 30));
-        $includeExternal = !in_array(
+        $includeExternal = ! in_array(
             strtolower((string) $request->query('include_external', 'true')),
             ['0', 'false', 'no'],
             true
@@ -311,12 +314,14 @@ class BookWorkflowController extends Controller
 
     public function show(Request $request, Book $book): JsonResponse
     {
-        if (!$this->canViewBook($request->user(), $book)) {
+        if (! $this->canViewBook($request->user(), $book)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Book not found.',
             ], 404);
         }
+
+        $this->interactionRedisService->recordBookInteraction($book, $request, 'detail_view');
 
         return response()->json([
             'success' => true,
@@ -327,14 +332,14 @@ class BookWorkflowController extends Controller
 
     public function readPdf(Request $request, Book $book): BinaryFileResponse|JsonResponse
     {
-        if (!$this->canViewBook($request->user(), $book)) {
+        if (! $this->canViewBook($request->user(), $book)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Book not found.',
             ], 404);
         }
 
-        if (!$book->pdf_path || !Storage::disk('public')->exists($book->pdf_path)) {
+        if (! $book->pdf_path || ! Storage::disk('public')->exists($book->pdf_path)) {
             return response()->json([
                 'success' => false,
                 'message' => 'PDF file not found.',
@@ -344,6 +349,8 @@ class BookWorkflowController extends Controller
         $path = Storage::disk('public')->path($book->pdf_path);
         $mimeType = $book->pdf_mime_type ?: (Storage::disk('public')->mimeType($book->pdf_path) ?: 'application/pdf');
         $filename = $book->original_pdf_name ?: basename($book->pdf_path);
+
+        $this->interactionRedisService->recordBookInteraction($book, $request, 'read');
 
         return response()->file($path, [
             'Content-Type' => $mimeType,
@@ -355,14 +362,14 @@ class BookWorkflowController extends Controller
 
     public function downloadPdf(Request $request, Book $book): BinaryFileResponse|JsonResponse
     {
-        if (!$this->canViewBook($request->user(), $book)) {
+        if (! $this->canViewBook($request->user(), $book)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Book not found.',
             ], 404);
         }
 
-        if (!$book->pdf_path || !Storage::disk('public')->exists($book->pdf_path)) {
+        if (! $book->pdf_path || ! Storage::disk('public')->exists($book->pdf_path)) {
             return response()->json([
                 'success' => false,
                 'message' => 'PDF file not found.',
@@ -445,7 +452,7 @@ class BookWorkflowController extends Controller
 
     public function viewCover(Request $request, Book $book): Response|BinaryFileResponse|JsonResponse
     {
-        if (!$this->canViewBook($request->user(), $book)) {
+        if (! $this->canViewBook($request->user(), $book)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Book not found.',
@@ -942,7 +949,7 @@ class BookWorkflowController extends Controller
             return true;
         }
 
-        if (!$user) {
+        if (! $user) {
             return false;
         }
 
@@ -957,7 +964,7 @@ class BookWorkflowController extends Controller
     {
         foreach ([$book->pdf_path, $book->book_file_path] as $candidate) {
             $value = trim((string) $candidate);
-            if ($value !== '' && !$this->isAbsoluteUrl($value) && !$this->isAbsoluteFilePath($value)) {
+            if ($value !== '' && ! $this->isAbsoluteUrl($value) && ! $this->isAbsoluteFilePath($value)) {
                 return $value;
             }
         }
@@ -968,7 +975,7 @@ class BookWorkflowController extends Controller
     private function recordDownload(Request $request, Book $book): void
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             return;
         }
 
@@ -1000,6 +1007,7 @@ class BookWorkflowController extends Controller
     private function transformSimpleBook(Book $book): array
     {
         $book->loadMissing(['coverImage', 'author']);
+
         return [
             ...$this->baseBookPayload($book),
             'status' => (string) $book->status,
@@ -1019,7 +1027,7 @@ class BookWorkflowController extends Controller
     private function applyAuthorFilter(Builder $query, Request $request): void
     {
         $authorValue = $request->query('author_id', $request->query('authorId'));
-        if ($authorValue === null || $authorValue === '' || !is_numeric($authorValue)) {
+        if ($authorValue === null || $authorValue === '' || ! is_numeric($authorValue)) {
             return;
         }
 
